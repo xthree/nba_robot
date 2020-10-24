@@ -10,15 +10,17 @@ var rp = require('request-promise');
 var fs = require('fs');
 // TWITTER
 var OAuth = require('oauth');
+// Scheduleer
+var schedule = require('node-schedule');
 var BasketballGame = /** @class */ (function () {
     function BasketballGame(gameId) {
         var _this = this;
         this.hasGameStarted = false;
         this.isConcluded = false;
         this.gameConcludedInOvertime = false;
-        this.isEndOfQuarter = true;
         this.haveDisplayedEndOfQuarter = false;
         this.haveDisplayedStartOfGame = false;
+        this.haveDisplayedEndOfGame = false;
         this.outputLog = "";
         this.URL = "https://www.espn.com/nba/boxscore?gameId=" + gameId;
         this.fetchPage().then(function (html) {
@@ -27,8 +29,8 @@ var BasketballGame = /** @class */ (function () {
             //this.setUpTeamContainers();
             _this.initializeTeams();
             _this.refresh().then(function () {
+                // If bot is started after the game has concluded, the run will not happen, and thus no generation of post-game files
                 if (_this.isConcluded) {
-                    // If bot is started after the game has concluded, the run will not happen, and thus no generation of post-game files
                     return;
                 }
                 _this.run();
@@ -95,7 +97,6 @@ var BasketballGame = /** @class */ (function () {
         this.airingNetwork = this.$headerWrapper.find('.game-status .network').text().trim();
         this.hasGameStarted = this.$wrapper.text().trim() != "No Box Score Available";
         this.currentTime = this.$headerWrapper.find('.game-status .game-time').text().trim();
-        //@ts-ignore
         this.isEndOfQuarter = this.currentTime.includes("End") || this.currentTime.includes("Half");
         this.isConcluded = this.currentTime.includes("Final");
         var homeTeamScore = this.getHomeTeamScore();
@@ -103,6 +104,15 @@ var BasketballGame = /** @class */ (function () {
         var combinedScore = homeTeamScore + awayTeamScore;
         this.homeTeam.updateTeamData(homeTeamScore, this.isConcluded);
         this.awayTeam.updateTeamData(awayTeamScore, this.isConcluded);
+        if (this.hasGameStarted && !this.haveDisplayedStartOfGame) {
+            this.sendTweet(this.awayTeam.name + " " + this.homeTeam.name + "\nGame has started");
+            this.haveDisplayedStartOfGame = true;
+        }
+        if (this.isConcluded && !this.haveDisplayedEndOfGame) {
+            var msg = "\n" + this.currentTime + "\n" + this.awayTeam.name + "-" + this.awayTeam.score + " " + this.homeTeam.name + "-" + this.homeTeam.score;
+            this.sendTweet(msg);
+            this.haveDisplayedEndOfGame = true;
+        }
         // Block display 
         if ((this.isEndOfQuarter && !this.haveDisplayedEndOfQuarter) || (!this.hasGameStarted && !this.haveDisplayedEndOfQuarter)) {
             if (!this.hasGameStarted) {
@@ -112,12 +122,9 @@ var BasketballGame = /** @class */ (function () {
                 this.haveDisplayedEndOfQuarter = true;
                 return;
             }
-            if (this.hasGameStarted && !this.haveDisplayedStartOfGame) {
-                this.sendTweet(this.awayTeam.name + " " + this.homeTeam.name + "\nGame has started");
-            }
             var msg = "\n" + this.currentTime + "\n" + this.awayTeam.name + "-" + this.awayTeam.score + " " + this.homeTeam.name + "-" + this.homeTeam.score;
-            console.log(msg);
             this.outputLog += msg;
+            console.log(msg);
             this.sendTweet(msg);
             this.haveDisplayedEndOfQuarter = true;
             return;
@@ -130,7 +137,7 @@ var BasketballGame = /** @class */ (function () {
             var msg = "\n" + this.currentTime + "  " + this.awayTeam.name + "-" + this.awayTeam.score + " " + this.homeTeam.name + "-" + this.homeTeam.score;
             console.log(msg);
             if (this.isConcluded) {
-                this.sendTweet(msg);
+                //this.sendTweet(msg);
             }
             this.outputLog += msg;
             this.haveDisplayedEndOfQuarter = false;
@@ -148,19 +155,21 @@ var BasketballGame = /** @class */ (function () {
         this.awayTeam.updateContainer(this.$wrapper.find('.gamepackage-away-wrap'));
     };
     BasketballGame.prototype.initializeTeams = function () {
+        // Home
         var $homeWrapper = this.$wrapper.find('.gamepackage-home-wrap');
         var $homeHeaderWrapper = this.$headerWrapper.find('.team.home');
         var homeTeamUID = $homeHeaderWrapper.find('.team-name').data("clubhouse-uid");
         var homeTeamLocation = $homeHeaderWrapper.find('.long-name').text().trim();
         var homeTeamName = $homeHeaderWrapper.find('.team-name .short-name').text().trim();
         var homeTeamNameAbbreviation = $homeHeaderWrapper.find('.team-name .abbrev').text().trim();
+        this.homeTeam = new Team($homeWrapper, homeTeamUID, homeTeamLocation, homeTeamName, homeTeamNameAbbreviation, true);
+        // Away
         var $awayWrapper = this.$wrapper.find('.gamepackage-away-wrap');
         var $awayHeaderWrapper = this.$headerWrapper.find('.team.away');
         var awayTeamUID = $awayHeaderWrapper.find('.team-name').data("clubhouse-uid");
         var awayTeamLocation = $awayHeaderWrapper.find('.team-name .long-name').text().trim();
         var awayTeamName = $awayHeaderWrapper.find('.team-name .short-name').text().trim();
         var awayTeamNameAbbreviation = $awayHeaderWrapper.find('.team-name .abbrev').text().trim();
-        this.homeTeam = new Team($homeWrapper, homeTeamUID, homeTeamLocation, homeTeamName, homeTeamNameAbbreviation, true);
         this.awayTeam = new Team($awayWrapper, awayTeamUID, awayTeamLocation, awayTeamName, awayTeamNameAbbreviation, false);
     };
     BasketballGame.prototype.getHomeTeamScore = function () {
@@ -179,7 +188,6 @@ var BasketballGame = /** @class */ (function () {
         var postBody = {
             'status': status
         };
-        // console.log('Ready to Tweet article:\n\t', postBody.status);
         oauth.post('https://api.twitter.com/1.1/statuses/update.json', twitter_user_access_token, // oauth_token (user access token)
         twitter_user_secret, // oauth_secret (user secret)
         postBody, // post body
@@ -224,33 +232,42 @@ var Team = /** @class */ (function () {
             _this.players.push(new Player($(row)));
             scoreCount += isNaN(_this.players[i].points) ? 0 : _this.players[i].points;
         });
-        //scoreCount == this.score ? "" : console.warn(`scores do not match. Expected ${this.score}. Got ${scoreCount}`)
+        scoreCount == this.score ? "" : console.warn("scores do not match. Expected " + this.score + ". Got " + scoreCount);
     };
     return Team;
 }());
 var Player = /** @class */ (function () {
-    function Player(pRow) {
-        this.name = pRow.find('.name a span').first().text().trim();
-        this.minutes = parseInt(pRow.find('.min').text().trim());
-        this.fieldGoals = pRow.find('.fg').text().trim();
-        this.threePoints = pRow.find('.3pt').text().trim();
-        this.freeThrows = pRow.find('.ft').text().trim();
-        this.offensiveRebounds = parseInt(pRow.find('.oreb').text().trim());
-        this.defensiveRebounds = parseInt(pRow.find('.dreb').text().trim());
-        this.totalRebounds = parseInt(pRow.find('.reb').text().trim());
-        this.assists = parseInt(pRow.find('.ast').text().trim());
-        this.steals = parseInt(pRow.find('.stl').text().trim());
-        this.blocks = parseInt(pRow.find('.blk').text().trim());
-        this.turnOvers = parseInt(pRow.find('.to').text().trim());
-        this.personalFouls = parseInt(pRow.find('.pf').text().trim());
-        this.plusMinus = parseInt(pRow.find('.plusminus').text().trim());
-        this.points = parseInt(pRow.find('.pts').text().trim());
+    function Player($pRow) {
+        this.name = $pRow.find('.name a span').first().text().trim();
+        this.minutes = parseInt($pRow.find('.min').text().trim());
+        this.fieldGoals = $pRow.find('.fg').text().trim();
+        this.threePoints = $pRow.find('.3pt').text().trim();
+        this.freeThrows = $pRow.find('.ft').text().trim();
+        this.offensiveRebounds = parseInt($pRow.find('.oreb').text().trim());
+        this.defensiveRebounds = parseInt($pRow.find('.dreb').text().trim());
+        this.totalRebounds = parseInt($pRow.find('.reb').text().trim());
+        this.assists = parseInt($pRow.find('.ast').text().trim());
+        this.steals = parseInt($pRow.find('.stl').text().trim());
+        this.blocks = parseInt($pRow.find('.blk').text().trim());
+        this.turnOvers = parseInt($pRow.find('.to').text().trim());
+        this.personalFouls = parseInt($pRow.find('.pf').text().trim());
+        this.plusMinus = parseInt($pRow.find('.plusminus').text().trim());
+        this.points = parseInt($pRow.find('.pts').text().trim());
     }
     return Player;
 }());
 rp("http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard").then(function (e) {
     var data = JSON.parse(e);
-    console.log(data.events);
+    for (var _i = 0, _a = data.events; _i < _a.length; _i++) {
+        var event_1 = _a[_i];
+        var gameStartTime = new Date(event_1.date);
+        gameStartTime.setMinutes(gameStartTime.getMinutes() - 15);
+        console.log(event_1.name + " scheduled for " + gameStartTime + ". " + event_1.id);
+        scheduleGame(gameStartTime, event_1.id);
+    }
 });
-//let game = new BasketballGame("401241769");
-//let game2 = new BasketballGame("401242802");
+function scheduleGame(pStartTime, pGameId) {
+    schedule.scheduleJob(pStartTime, function (y) {
+        new BasketballGame(pGameId);
+    });
+}
