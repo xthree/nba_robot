@@ -6,13 +6,14 @@ let $ = require('jquery')(new jsdom.JSDOM().window);
 export class Team {
     private $wrapper: JQuery;
     private isHomeTeam: boolean;
-    private UID: string;
+    readonly UID: string;
     private location: string;
     public name: string;
     private nameAbbreviation: string;
     public score: number;
     private record: string;
     public players: Player[];
+    public areScoresAccurate: boolean;
 
     constructor(pWrapper: JQuery, pUID: string, pLocation: string, pTeamName: string, pTeamNameAbbreviation: string, pIsHomeTeam: boolean) {
         this.$wrapper = $(pWrapper);
@@ -34,6 +35,7 @@ export class Team {
         this.$wrapper = $pNewWrapper;
     }
 
+    // Returns false if team score does not match added up player scores
     public generatePlayerData() {
         let $players = this.$wrapper.find("tbody tr").not('.highlight');
         this.players = [];
@@ -46,6 +48,7 @@ export class Team {
             scoreCount += isNaN(this.players[i].points) ? 0 : this.players[i].points;
         });
 
-        scoreCount == this.score ? "" : console.warn(`scores do not match. Expected ${this.score}. Got ${scoreCount}`)
+        this.areScoresAccurate = scoreCount == this.score;
+        this.areScoresAccurate ? "" : console.warn(`scores do not match. Expected ${this.score}. Got ${scoreCount}`)
     }
 }
