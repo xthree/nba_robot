@@ -10,9 +10,10 @@ export class NBATeam {
 }
 
 let $: any;
-//
-//https://www.espn.com/nba/teams
-function a() {
+// Gets an array of team display name and abbrevition from the ESPN NBA Teams page
+// Working as of November 2020
+// https://www.espn.com/nba/teams
+function getTeamNames() {
   let teamArray = [];
   let x = $("body").find(".TeamLinks").toArray();
 
@@ -21,8 +22,8 @@ function a() {
     let name = $e.find("img").attr("alt");
 
     let url = $e.find("a").attr("href");
-    let arrayt = url.split("/");
-    let abbr = arrayt[5];
+    let urlSegments = url.split("/");
+    let abbr = urlSegments[5];
 
     teamArray.push({
       displayName: name,

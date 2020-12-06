@@ -1,4 +1,4 @@
-import { Player } from "./player"
+import { PlayerRow } from "./player"
 
 let jsdom = require("jsdom");
 let $ = require('jquery')(new jsdom.JSDOM().window);
@@ -12,7 +12,7 @@ export class Team {
     private nameAbbreviation: string;
     public score: number;
     private record: string;
-    public players: Player[];
+    public players: PlayerRow[];
     public areScoresAccurate: boolean;
 
     constructor(pWrapper: JQuery, pUID: string, pLocation: string, pTeamName: string, pTeamNameAbbreviation: string, pIsHomeTeam: boolean) {
@@ -44,7 +44,7 @@ export class Team {
         let scoreCount = 0;
 
         $players.each((i, row) => {
-            this.players.push(new Player($(row)));
+            this.players.push(new PlayerRow($(row)));
             scoreCount += isNaN(this.players[i].points) ? 0 : this.players[i].points;
         });
 
