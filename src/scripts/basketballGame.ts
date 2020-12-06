@@ -1,9 +1,11 @@
-const rp = require('request-promise');
-import { Twitter } from "./twitter"
-import { Team } from "./team"
+const rp = require("request-promise");
+import { Twitter } from "./twitter";
+import { Team } from "./team";
+import { ESPN } from "./helpers/ESPN";
+import { Helpers } from "./helpers/helpers";
 
 let jsdom = require("jsdom");
-let $ = require('jquery')(new jsdom.JSDOM().window);
+let $ = require("jquery")(new jsdom.JSDOM().window);
 
 export class BasketballGame {
   private fs;
@@ -42,7 +44,7 @@ export class BasketballGame {
   constructor(gameId: string, fs: any) {
     this.fs = fs;
     this.gameId = gameId;
-    this.URL = `https://www.espn.com/nba/boxscore?gameId=${gameId}`;
+    this.URL = ESPN.boxScore + gameId;
     this.twitterBot = new Twitter(true); // CHANGE THIS TO FALSE TO ENABLE TWEETING
 
     this.fetchPageHTMLAsync().then((html) => {
@@ -54,7 +56,7 @@ export class BasketballGame {
   //returns true if sucessful save
   private generateSaveFile(): boolean {
     console.log("Generating Save File");
-    var ret = {
+    var gameFile = {
       GameId: this.gameId,
       GameURL: this.URL,
       Competitors: this.awayTeam.name + "-" + this.homeTeam.name,
@@ -63,22 +65,34 @@ export class BasketballGame {
       AwayScore: this.getAwayTeamScore(),
       HomeScore: this.getHomeTeamScore(),
       AwayPlayers: this.awayTeam.players,
-      HomePlayers: this.homeTeam.players
-    }
+      HomePlayers: this.homeTeam.players,
+    };
 
-    let isPlayerScoreAccurate = this.awayTeam.areScoresAccurate && this.homeTeam.areScoresAccurate;
+    let isPlayerScoreAccurate =
+      this.awayTeam.areScoresAccurate && this.homeTeam.areScoresAccurate;
 
-    let json = JSON.stringify(ret);
-
+    let json = JSON.stringify(gameFile);
 
     // THIS IS USING NOW'S DATE. NOT GOOD. NEED GAME DATE
     const date = new Date();
-    const dateTimeFormat = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'short', day: '2-digit' });
-    const [{ value: month }, , { value: day }, , { value: year }] = dateTimeFormat.formatToParts(date);
+    const dateTimeFormat = new Intl.DateTimeFormat("en", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+    const [
+      { value: month },
+      ,
+      { value: day },
+      ,
+      { value: year },
+    ] = dateTimeFormat.formatToParts(date);
 
     var dateText = `${day}-${month}-${year}`;
 
-    var fileName = `${this.gameId}_${ret.Competitors}_${dateText}`;
+    var fileName = `${this.gameId}_${gameFile.Competitors}_${dateText}`;
+
+    Helpers.makeFile(gameFile, fileName)
 
     this.fs.writeFileSync(`/output/${fileName}.json`, json, (e) => {
       console.log("error");
@@ -90,9 +104,9 @@ export class BasketballGame {
     //   console.log(e);
     // });
 
-    console.log("Sucessfully Saved")
+    console.log("Sucessfully Saved");
 
-// if score wasnt accurate return ffalse to note later
+    // if score wasnt accurate return ffalse to note later
     if (!isPlayerScoreAccurate) {
       return false;
     }
@@ -101,7 +115,7 @@ export class BasketballGame {
   }
 
   public refreshData(): JQueryPromise<any> {
-    console.log("Refreshing Data")
+    console.log("Refreshing Data");
     return this.fetchPageHTMLAsync().then((html) => {
       this.setUpContainers(html);
       this.setUpTeamContainers();
@@ -113,31 +127,28 @@ export class BasketballGame {
   public run(): JQueryPromise<any> {
     //@ts-ignore
     return new Promise((resolve, reject) => {
-
-      console.log("running")
+      console.log("running");
       let updateInterval = 5000;
 
-      var intervalId =
-        setInterval(() => {
-          //console.log("refreshing")
-          this.refreshData().then(() => {
-            //this.liveTweet();
-            if (this.isConcluded) {
-              var accurateScore = this.generateSaveFile();
+      var intervalId = setInterval(() => {
+        //console.log("refreshing")
+        this.refreshData().then(() => {
+          //this.liveTweet();
+          if (this.isConcluded) {
+            var accurateScore = this.generateSaveFile();
 
-              if (accurateScore) {
-                console.log("Score was accurate")
-                clearInterval(intervalId);
-                resolve(true);
-              }
-              else {
-                console.log("ERROR Inaccurate score")
-                clearInterval(intervalId);// clearing only for gamefetcher
-                resolve(false);
-              }
+            if (accurateScore) {
+              console.log("Score was accurate");
+              clearInterval(intervalId);
+              resolve(true);
+            } else {
+              console.log("ERROR Inaccurate score");
+              clearInterval(intervalId); // clearing only for gamefetcher's run, should actually run again remove this
+              resolve(false);
             }
-          });
-        }, updateInterval);
+          }
+        });
+      }, updateInterval);
     });
   }
 
@@ -146,10 +157,11 @@ export class BasketballGame {
   }
 
   public liveTweet() {
-
     // First run through, always announce start of game.
     if (this.hasGameStarted && !this.haveDisplayedStartOfGame) {
-      this.twitterBot.sendTweet(`${this.awayTeam.name} ${this.homeTeam.name}\nGame has started`);
+      this.twitterBot.sendTweet(
+        `${this.awayTeam.name} ${this.homeTeam.name}\nGame has started`
+      );
       this.haveDisplayedStartOfGame = true;
 
       return;
@@ -164,8 +176,11 @@ export class BasketballGame {
       return;
     }
 
-    // Block display 
-    if ((this.isEndOfQuarter && !this.haveDisplayedEndOfQuarter) || (!this.hasGameStarted && !this.haveDisplayedEndOfQuarter)) {
+    // Block display
+    if (
+      (this.isEndOfQuarter && !this.haveDisplayedEndOfQuarter) ||
+      (!this.hasGameStarted && !this.haveDisplayedEndOfQuarter)
+    ) {
       if (!this.hasGameStarted) {
         let msg = "Game has not yet started";
         this.outputLog += msg;
@@ -182,8 +197,10 @@ export class BasketballGame {
       this.twitterBot.sendTweet(msg);
       this.haveDisplayedEndOfQuarter = true;
       return;
-    }
-    else if ((this.isEndOfQuarter && this.haveDisplayedEndOfQuarter) || (!this.hasGameStarted && this.haveDisplayedEndOfQuarter)) {
+    } else if (
+      (this.isEndOfQuarter && this.haveDisplayedEndOfQuarter) ||
+      (!this.hasGameStarted && this.haveDisplayedEndOfQuarter)
+    ) {
       return; //Wait until game starts again
     }
   }
@@ -197,12 +214,19 @@ export class BasketballGame {
     }
   }
 
-  public updateGameData() {
-    this.description = this.$headerWrapper.find('.game-details').text().trim();
-    this.airingNetwork = this.$headerWrapper.find('.game-status .network').text().trim();
+  public updateGameData(): void {
+    this.description = this.$headerWrapper.find(".game-details").text().trim();
+    this.airingNetwork = this.$headerWrapper
+      .find(".game-status .network")
+      .text()
+      .trim();
 
-    this.hasGameStarted = this.$wrapper.text().trim() != "No Box Score Available";
-    this.currentTime = this.$headerWrapper.find('.game-status .game-time').text().trim();
+    this.hasGameStarted =
+      this.$wrapper.text().trim() != "No Box Score Available";
+    this.currentTime = this.$headerWrapper
+      .find(".game-status .game-time")
+      .text()
+      .trim();
 
     this.isEndOfQuarter = this.currentTime.includes("End") || this.currentTime.includes("Half");
     this.isConcluded = this.currentTime.includes("Final");
@@ -211,11 +235,11 @@ export class BasketballGame {
     let awayTeamScore = this.getAwayTeamScore();
     let combinedScore = homeTeamScore + awayTeamScore;
 
-    this.hasScoreAndTimeChanged = this.lastTime != this.currentTime && combinedScore != this.lastScore;
+    this.hasScoreAndTimeChanged =
+      this.lastTime != this.currentTime && combinedScore != this.lastScore;
 
     this.homeTeam.updateTeamData(homeTeamScore, this.isConcluded);
     this.awayTeam.updateTeamData(awayTeamScore, this.isConcluded);
-
 
     this.lastTime = this.currentTime;
     this.lastScore = combinedScore;
@@ -223,45 +247,81 @@ export class BasketballGame {
 
   public setUpContainers(pHtml: string) {
     this.$pageWrapper = $(pHtml);
-    this.$wrapper = this.$pageWrapper.find('#gamepackage-box-score');
-    this.$headerWrapper = this.$pageWrapper.find('#gamepackage-matchup-wrap');
+    this.$wrapper = this.$pageWrapper.find("#gamepackage-box-score");
+    this.$headerWrapper = this.$pageWrapper.find("#gamepackage-matchup-wrap");
   }
 
   public setUpTeamContainers() {
-    this.homeTeam.updateContainer(this.$wrapper.find('.gamepackage-home-wrap'));
-    this.awayTeam.updateContainer(this.$wrapper.find('.gamepackage-away-wrap'));
+    this.homeTeam.updateContainer(this.$wrapper.find(".gamepackage-home-wrap"));
+    this.awayTeam.updateContainer(this.$wrapper.find(".gamepackage-away-wrap"));
   }
 
   public initializeTeams() {
-
     // Home
-    let $homeWrapper = this.$wrapper.find('.gamepackage-home-wrap')
-    let $homeHeaderWrapper = this.$headerWrapper.find('.team.home');
+    let $homeWrapper = this.$wrapper.find(".gamepackage-home-wrap");
+    let $homeHeaderWrapper = this.$headerWrapper.find(".team.home");
 
-    let homeTeamUID = $homeHeaderWrapper.find('.team-name').data("clubhouse-uid");
-    let homeTeamLocation = $homeHeaderWrapper.find('.long-name').text().trim();
-    let homeTeamName = $homeHeaderWrapper.find('.team-name .short-name').text().trim();
-    let homeTeamNameAbbreviation = $homeHeaderWrapper.find('.team-name .abbrev').text().trim();
+    let homeTeamUID = $homeHeaderWrapper
+      .find(".team-name")
+      .data("clubhouse-uid");
+    let homeTeamLocation = $homeHeaderWrapper.find(".long-name").text().trim();
+    let homeTeamName = $homeHeaderWrapper
+      .find(".team-name .short-name")
+      .text()
+      .trim();
+    let homeTeamNameAbbreviation = $homeHeaderWrapper
+      .find(".team-name .abbrev")
+      .text()
+      .trim();
 
-    this.homeTeam = new Team($homeWrapper, homeTeamUID, homeTeamLocation, homeTeamName, homeTeamNameAbbreviation, true);
+    this.homeTeam = new Team(
+      $homeWrapper,
+      homeTeamUID,
+      homeTeamLocation,
+      homeTeamName,
+      homeTeamNameAbbreviation,
+      true
+    );
 
     // Away
-    let $awayWrapper = this.$wrapper.find('.gamepackage-away-wrap');
-    let $awayHeaderWrapper = this.$headerWrapper.find('.team.away');
+    let $awayWrapper = this.$wrapper.find(".gamepackage-away-wrap");
+    let $awayHeaderWrapper = this.$headerWrapper.find(".team.away");
 
-    let awayTeamUID = $awayHeaderWrapper.find('.team-name').data("clubhouse-uid");
-    let awayTeamLocation = $awayHeaderWrapper.find('.team-name .long-name').text().trim();
-    let awayTeamName = $awayHeaderWrapper.find('.team-name .short-name').text().trim();
-    let awayTeamNameAbbreviation = $awayHeaderWrapper.find('.team-name .abbrev').text().trim();
+    let awayTeamUID = $awayHeaderWrapper
+      .find(".team-name")
+      .data("clubhouse-uid");
+    let awayTeamLocation = $awayHeaderWrapper
+      .find(".team-name .long-name")
+      .text()
+      .trim();
+    let awayTeamName = $awayHeaderWrapper
+      .find(".team-name .short-name")
+      .text()
+      .trim();
+    let awayTeamNameAbbreviation = $awayHeaderWrapper
+      .find(".team-name .abbrev")
+      .text()
+      .trim();
 
-    this.awayTeam = new Team($awayWrapper, awayTeamUID, awayTeamLocation, awayTeamName, awayTeamNameAbbreviation, false);
+    this.awayTeam = new Team(
+      $awayWrapper,
+      awayTeamUID,
+      awayTeamLocation,
+      awayTeamName,
+      awayTeamNameAbbreviation,
+      false
+    );
   }
 
-  public getHomeTeamScore() {
-    return parseInt(this.$headerWrapper.find('.team.home .score').text().trim());
+  public getHomeTeamScore(): number {
+    return parseInt(
+      this.$headerWrapper.find(".team.home .score").text().trim()
+    );
   }
 
-  public getAwayTeamScore() {
-    return parseInt(this.$headerWrapper.find('.team.away .score').text().trim());
+  public getAwayTeamScore(): number {
+    return parseInt(
+      this.$headerWrapper.find(".team.away .score").text().trim()
+    );
   }
 }

@@ -1,29 +1,38 @@
 let jsdom = require("jsdom");
 let $ = require("jquery")(new jsdom.JSDOM().window);
 
-
 const moment = require("moment");
 const rp = require("request-promise");
 const fs = require("fs");
 
 import { BasketballGame } from "../basketballGame";
 import { ESPN } from "./ESPN";
+import { GameFile } from "../interfaces/gameFile"
 
 export class Helpers {
-  public static makeFile(pObject, pFileName: string, pFileLocation?: string) {
+  public static makeFile(pObject: any, pFileName: string, pFileLocation?: string) {
     let objectString = JSON.stringify(pObject);
     let fileLocation = pFileLocation ? pFileLocation : "/output/";
     fs.writeFile(`${fileLocation}${pFileName}`, objectString, (e) => {});
   }
+
+  public static getPageWrapperAsync(pURL: string): JQueryPromise<JQuery> {
+    return rp(pURL).then((html: string) => {
+      return $(html);
+    });
+  }
+
+  public static getPageHTMLAsync(pURL: string): string {
+    return rp(pURL).then((html: string) => {
+      return html;
+    });
+  }
 }
 
-
-function getGameInfoForGameId(pGameId) {
-    let game = new BasketballGame(pGameId, fs);
-    return game.run();
-  }
-  
-
+// function getGameInfoForGameIdAsync(pGameId):JQueryPromise< {
+//   let game = new BasketballGame(pGameId, fs);
+//   return game.run();
+// }
 
 //Check JSON files for accuracy
 
@@ -44,39 +53,27 @@ function getGameInfoForGameId(pGameId) {
 //         });
 // });
 
-// interface GameFile {
-//     GameURL: string;
-//     GameId: string;
-//     Competitors: string;
-//     GameDescription: string;
-//     AiringNetwork: string;
-//     AwayScore: number;
-//     HomeScore: number;
-//     AwayPlayers: Player[];
-//     HomePlayers: Player[];
-// }
+function compareScores(pGameObject: GameFile, pFileName) {
+    let combined = pGameObject.HomeScore + pGameObject.AwayScore;
+    let runningScore = 0;
 
-// function compareScores(pGameObject: GameFile, pFileName) {
-//     let combined = pGameObject.HomeScore + pGameObject.AwayScore;
-//     let runningScore = 0;
+    for (let player of pGameObject.HomePlayers) {
+        runningScore += player.points ? player.points : 0;
+    }
 
-//     for (let player of pGameObject.HomePlayers) {
-//         runningScore += player.points ? player.points : 0;
-//     }
+    for (let player of pGameObject.AwayPlayers) {
+        runningScore += player.points ? player.points : 0;
+    }
 
-//     for (let player of pGameObject.AwayPlayers) {
-//         runningScore += player.points ? player.points : 0;
-//     }
+    let scoresMatch = combined == runningScore;
 
-//     let scoresMatch = combined == runningScore;
-
-//     if (scoresMatch) {
-//         console.log("scores match")
-//       //  matchCount++;
-//     }
-//     else {
-//         console.log("scores do NOT match")
-//         console.log(pFileName)
-//         //notMatchCount++;
-//     }
-// }
+    if (scoresMatch) {
+        console.log("scores match")
+      //  matchCount++;
+    }
+    else {
+        console.log("scores do NOT match")
+        console.log(pFileName)
+        //notMatchCount++;
+    }
+}

@@ -1,4 +1,4 @@
-export class Player {
+export class PlayerRow {
   private UID: string;
   private name: string;
   private minutes: number;
