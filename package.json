@@ -1,0 +1,30 @@
+{
+  "name": "nba_robot",
+  "version": "1.0.0",
+  "description": "a robot that tweets nba basketball scores and stats",
+  "main": "app.js",
+  "dependencies": {
+    "jquery": "^3.5.1",
+    "jsdom": "^16.4.0",
+    "moment": "^2.29.1",
+    "node": "^15.0.1",
+    "node-schedule": "^1.3.2",
+    "oauth": "^0.9.15",
+    "request-promise": "^4.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^14.14.3",
+    "@types/jquery": "^3.5.3",
+    "@types/oauth": "^0.9.1"
+  },
+  "scripts": {
+    "start": "node dist/app.js",
+    "test": "wat"
+  },
+  "keywords": [
+    "\"name\":",
+    "\"nba_robot\""
+  ],
+  "author": "\"version\": \"1.0.0\"",
+  "license": "UNLICENSED"
+}
