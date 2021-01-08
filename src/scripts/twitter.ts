@@ -28,7 +28,7 @@ export class Twitter {
     }
 
     public sendTweet(pTweetMessage: string) {
-        
+        pTweetMessage += '\n';
         if(this.isDebug) {
             console.log("Fake Tweeting:")
             console.log(pTweetMessage);

@@ -11,9 +11,5 @@ const fs = require("fs");
 
 const scheduler = require('node-schedule');
 
-var game1 = new BasketballGame("401267258");
-game1.run();
-
-
 // Schedule all games for the day
 Scheduler.scheduleAllGames();
