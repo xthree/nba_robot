@@ -7,13 +7,23 @@ const fs = require("fs");
 
 import { BasketballGame } from "../basketballGame";
 import { ESPN } from "./ESPN";
-import { GameFile } from "../interfaces/gameFile"
+import { GameFile } from "../interfaces/gameFile";
 
 export class Helpers {
-  public static makeFile(pObject: any, pFileName: string, pFileLocation?: string) {
+  // to do fix
+  public static makeFile(
+    pObject: any,
+    pFileName: string,
+    pFileLocation?: string
+  ) {
+    console.log("making file");
+    console.log("this does not work atm find out why");
     let objectString = JSON.stringify(pObject);
     let fileLocation = pFileLocation ? pFileLocation : "/output/";
-    fs.writeFile(`${fileLocation}${pFileName}`, objectString, (e) => {});
+    fs.writeFile(`${fileLocation}${pFileName}`, objectString, (e) => {
+      console.log("finishing writng")
+      console.log(e);
+    });
   }
 
   public static getPageWrapperAsync(pURL: string): JQueryPromise<JQuery> {
@@ -53,27 +63,26 @@ export class Helpers {
 //         });
 // });
 
-function compareScores(pGameObject: GameFile, pFileName) {
-    let combined = pGameObject.HomeScore + pGameObject.AwayScore;
-    let runningScore = 0;
+function compareScores(pGameObject: GameFile, pFileName): void {
+  let combined = pGameObject.HomeScore + pGameObject.AwayScore;
+  let runningScore = 0;
 
-    for (let player of pGameObject.HomePlayers) {
-        runningScore += player.points ? player.points : 0;
-    }
+  for (let player of pGameObject.HomePlayers) {
+    runningScore += player.points ? player.points : 0;
+  }
 
-    for (let player of pGameObject.AwayPlayers) {
-        runningScore += player.points ? player.points : 0;
-    }
+  for (let player of pGameObject.AwayPlayers) {
+    runningScore += player.points ? player.points : 0;
+  }
 
-    let scoresMatch = combined == runningScore;
+  let scoresMatch = combined == runningScore;
 
-    if (scoresMatch) {
-        console.log("scores match")
-      //  matchCount++;
-    }
-    else {
-        console.log("scores do NOT match")
-        console.log(pFileName)
-        //notMatchCount++;
-    }
+  if (scoresMatch) {
+    console.log("scores match");
+    //  matchCount++;
+  } else {
+    console.log("scores do NOT match");
+    console.log(pFileName);
+    //notMatchCount++;
+  }
 }

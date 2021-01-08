@@ -20,7 +20,7 @@ export class GameFetcher {
   private createNextGame(pGameId) {
     this.index == 0 ? console.log("first game") : console.log("next game");
 
-    let game = new BasketballGame(pGameId, fs);
+    let game = new BasketballGame(pGameId);
 
     return game.run().then((pInaccurateScore) => {
       if (pInaccurateScore) {
