@@ -20,7 +20,7 @@ export class Helpers {
     console.log("this does not work atm find out why");
     let objectString = JSON.stringify(pObject);
     let fileLocation = pFileLocation ? pFileLocation : "/output/";
-    fs.writeFile(`${fileLocation}${pFileName}`, objectString, (e) => {
+    fs.writeFile(`${fileLocation}${pFileName}.json`, objectString, (e) => {
       console.log("finishing writng")
       console.log(e);
     });

@@ -10,6 +10,7 @@ let jsdom = require("jsdom");
 let $ = require("jquery")(new jsdom.JSDOM().window);
 
 export class BasketballGame {
+  private isDebug:boolean = true;
   private twitterBot: Twitter;
 
   private $pageWrapper: JQuery;
@@ -45,7 +46,7 @@ export class BasketballGame {
   constructor(gameId: string) {
     this.gameId = gameId;
     this.URL = ESPN.boxScore + gameId;
-    this.twitterBot = new Twitter(false); // CHANGE THIS TO FALSE TO ENABLE TWEETING
+    this.twitterBot = new Twitter(this.isDebug); // CHANGE THIS TO FALSE TO ENABLE TWEETING
 
     this.fetchPageHTMLAsync().then((html) => {
       this.setUpContainers(html);
@@ -98,6 +99,8 @@ export class BasketballGame {
 
     var fileName = `${this.gameId}_${gameFile.Competitors}_${dateText}`;
 
+    if(this.isDebug) fileName += "_DEBUG";
+
     Helpers.makeFile(gameFile, fileName);
 
     fs.writeFile(`/home/pi/output/${fileName}.json`, gameJson, (e) => {
@@ -110,7 +113,6 @@ export class BasketballGame {
   }
 
   public refreshData(): JQueryPromise<any> {
-    console.log("Refreshing Data");
 
     return this.fetchPageHTMLAsync().then((html) => {
       this.setUpContainers(html);
@@ -161,7 +163,7 @@ export class BasketballGame {
 
     // First run through, always announce end of game.
     if (this.isConcluded && !this.haveDisplayedEndOfGame) {
-      let msg = `\n${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
+      let msg = `${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
 
       this.twitterBot.sendTweet(msg);
       this.haveDisplayedEndOfGame = true;
@@ -182,10 +184,14 @@ export class BasketballGame {
         return;
       }
 
-      let msg = `\n${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
+      let msg = `${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
       this.outputLog += msg;
 
-      this.twitterBot.sendTweet(msg);
+      //Only tweet "End of 4th" if scores are tied and will go to overtime
+      if(this.currentTime.includes("End") && this.currentTime.includes("4") && this.awayTeam.score == this.homeTeam.score) {
+        this.twitterBot.sendTweet(msg);
+      } 
+
       this.haveDisplayedEndOfQuarter = true;
       return;
     } else if (
@@ -198,7 +204,7 @@ export class BasketballGame {
 
   private updateLog() {
     if (this.hasScoreAndTimeChanged || this.isConcluded) {
-      let msg = `\n${this.currentTime}  ${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
+      let msg = `${this.currentTime}  ${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
       console.log(msg);
 
       this.outputLog += msg;
@@ -219,14 +225,14 @@ export class BasketballGame {
       .text()
       .trim();
 
-    this.isEndOfQuarter =
-      this.currentTime.includes("End") || this.currentTime.includes("Half");
-    this.isConcluded = this.currentTime.includes("Final");
+   
 
     let homeTeamScore = this.getHomeTeamScore();
     let awayTeamScore = this.getAwayTeamScore();
     let combinedScore = homeTeamScore + awayTeamScore;
-
+    this.isEndOfQuarter = this.currentTime.includes("End") || this.currentTime.includes("Half");
+    this.isConcluded = this.currentTime.includes("Final");
+    
     this.hasScoreAndTimeChanged =
       this.lastTime != this.currentTime &&
       combinedScore != this.lastCombinedScore;
