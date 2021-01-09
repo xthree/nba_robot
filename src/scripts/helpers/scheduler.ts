@@ -27,8 +27,10 @@ export class Scheduler {
       console.log(data);
       for (let event of data.events) {
         let gameStartTime = new Date(event.date);
+        let fifteenMinsBeforeGameStartTime = new Date(event.date);
+        fifteenMinsBeforeGameStartTime.setMinutes(fifteenMinsBeforeGameStartTime.getMinutes() - 15);
 
-        if (gameStartTime < new Date()) {
+        if (gameStartTime < new Date() || fifteenMinsBeforeGameStartTime <= new Date()) {
           setTimeout(() => {
               console.log("Game already started, running immediately")
             var game = new BasketballGame(event.id);
