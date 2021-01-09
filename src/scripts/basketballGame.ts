@@ -128,7 +128,7 @@ export class BasketballGame {
     //@ts-ignore
     return new Promise((resolve, reject) => {
       console.log("running");
-      let updateInterval = 5000;
+      let updateInterval = 10000;
 
       var intervalId = setInterval(
         () => {
@@ -190,7 +190,13 @@ export class BasketballGame {
       //Only tweet "End of 4th" if scores are tied and will go to overtime
       if(this.currentTime.includes("End") && this.currentTime.includes("4") && this.awayTeam.score == this.homeTeam.score) {
         this.twitterBot.sendTweet(msg);
-      } 
+      }
+      else if(this.currentTime.includes("End") && !this.currentTime.includes("4")){
+        this.twitterBot.sendTweet(msg);
+      }
+      else if(this.currentTime.includes("Half")) {
+        this.twitterBot.sendTweet(msg);
+      }
 
       this.haveDisplayedEndOfQuarter = true;
       return;
