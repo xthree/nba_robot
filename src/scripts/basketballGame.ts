@@ -10,12 +10,13 @@ let jsdom = require("jsdom");
 let $ = require("jquery")(new jsdom.JSDOM().window);
 
 export class BasketballGame {
-  private isDebug:boolean = true;
+  private isDebug: boolean = true;
   private twitterBot: Twitter;
 
   private $pageWrapper: JQuery;
   private $wrapper: JQuery;
   public $headerWrapper: JQuery;
+  public $linescoreTable: JQuery;
 
   private description: string;
   public airingNetwork: string;
@@ -64,8 +65,8 @@ export class BasketballGame {
       Competitors: this.awayTeam.name + "-" + this.homeTeam.name,
       GameDescription: this.description,
       AiringNetwork: this.airingNetwork,
-      AwayScore: this.getAwayTeamScore(),
-      HomeScore: this.getHomeTeamScore(),
+      AwayScore: this.getAwayTeamScore2(),
+      HomeScore: this.getHomeTeamScore2(),
       AwayPlayers: this.awayTeam.players,
       HomePlayers: this.homeTeam.players,
       IsAccurate:
@@ -99,7 +100,7 @@ export class BasketballGame {
 
     var fileName = `${this.gameId}_${gameFile.Competitors}_${dateText}`;
 
-    if(this.isDebug) fileName += "_DEBUG";
+    if (this.isDebug) fileName += "_DEBUG";
 
     Helpers.makeFile(gameFile, fileName);
 
@@ -113,7 +114,6 @@ export class BasketballGame {
   }
 
   public refreshData(): JQueryPromise<any> {
-
     return this.fetchPageHTMLAsync().then((html) => {
       this.setUpContainers(html);
       this.setUpTeamContainers();
@@ -130,19 +130,16 @@ export class BasketballGame {
       console.log("running");
       let updateInterval = 10000;
 
-      var intervalId = setInterval(
-        () => {
-          this.refreshData().then(() => {
-            if (this.isConcluded) {
-              var game = this.generateSaveFile();
+      var intervalId = setInterval(() => {
+        this.refreshData().then(() => {
+          if (this.isConcluded) {
+            var game = this.generateSaveFile();
 
-              clearInterval(intervalId);
-              resolve(true);
-            }
-          });
-        },
-        updateInterval
-      );
+            clearInterval(intervalId);
+            resolve(true);
+          }
+        });
+      }, updateInterval);
     });
   }
 
@@ -188,13 +185,18 @@ export class BasketballGame {
       this.outputLog += msg;
 
       //Only tweet "End of 4th" if scores are tied and will go to overtime
-      if(this.currentTime.includes("End") && this.currentTime.includes("4") && this.awayTeam.score == this.homeTeam.score) {
+      if (
+        this.currentTime.includes("End") &&
+        this.currentTime.includes("4") &&
+        this.awayTeam.score == this.homeTeam.score
+      ) {
         this.twitterBot.sendTweet(msg);
-      }
-      else if(this.currentTime.includes("End") && !this.currentTime.includes("4")){
+      } else if (
+        this.currentTime.includes("End") &&
+        !this.currentTime.includes("4")
+      ) {
         this.twitterBot.sendTweet(msg);
-      }
-      else if(this.currentTime.includes("Half")) {
+      } else if (this.currentTime.includes("Half")) {
         this.twitterBot.sendTweet(msg);
       }
 
@@ -226,19 +228,19 @@ export class BasketballGame {
 
     this.hasGameStarted =
       this.$wrapper.text().trim() != "No Box Score Available";
+
     this.currentTime = this.$headerWrapper
       .find(".game-status .game-time")
       .text()
       .trim();
 
-   
-
-    let homeTeamScore = this.getHomeTeamScore();
-    let awayTeamScore = this.getAwayTeamScore();
+    let homeTeamScore = this.getHomeTeamScore2();
+    let awayTeamScore = this.getAwayTeamScore2();
     let combinedScore = homeTeamScore + awayTeamScore;
-    this.isEndOfQuarter = this.currentTime.includes("End") || this.currentTime.includes("Half");
+    this.isEndOfQuarter =
+      this.currentTime.includes("End") || this.currentTime.includes("Half");
     this.isConcluded = this.currentTime.includes("Final");
-    
+
     this.hasScoreAndTimeChanged =
       this.lastTime != this.currentTime &&
       combinedScore != this.lastCombinedScore;
@@ -259,6 +261,7 @@ export class BasketballGame {
     this.$pageWrapper = $(pHtml);
     this.$wrapper = this.$pageWrapper.find("#gamepackage-box-score");
     this.$headerWrapper = this.$pageWrapper.find("#gamepackage-matchup-wrap");
+    this.$linescoreTable = this.$pageWrapper.find("#linescore");
   }
 
   public setUpTeamContainers(): void {
@@ -333,5 +336,61 @@ export class BasketballGame {
     return parseInt(
       this.$headerWrapper.find(".team.away .score").text().trim()
     );
+  }
+
+  public getHomeTeamScore2(): number {
+    return parseInt(
+      this.$linescoreTable
+        .find("tbody tr")
+        .eq(1)
+        .find(".final-score")
+        .text()
+        .trim()
+    );
+  }
+
+  public getAwayTeamScore2(): number {
+    return parseInt(
+      this.$linescoreTable
+        .find("tbody tr")
+        .eq(0)
+        .find(".final-score")
+        .text()
+        .trim()
+    );
+  }
+
+  public getAwayQuarterScore(pQuarter: number): number {
+    const quarterScore = this.$linescoreTable
+      .find("tbody tr")
+      .eq(0)
+      .find("td")
+      .eq(pQuarter)
+      .text()
+      .trim();
+
+    // In case quarter has no number, e.g: "", to prevent NaN
+    if (quarterScore) {
+      return parseInt(quarterScore);
+    } else {
+      return 0;
+    }
+  }
+
+  public getHomeQuarterScore(pQuarter: number): number {
+    const quarterScore = this.$linescoreTable
+      .find("tbody tr")
+      .eq(1)
+      .find("td")
+      .eq(pQuarter)
+      .text()
+      .trim();
+
+    // In case quarter has no number, e.g: "", to prevent NaN
+    if (quarterScore) {
+      return parseInt(quarterScore);
+    } else {
+      return 0;
+    }
   }
 }
