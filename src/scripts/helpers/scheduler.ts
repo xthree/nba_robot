@@ -6,21 +6,21 @@ import { ESPN } from "./ESPN";
 
 export class Scheduler {
   //Scheduler
-  public static scheduleGame(pStartTime, pGameId) {
+  public static scheduleGame(pStartTime, pGameId) :void {
     scheduler.scheduleJob(pStartTime, function (y) {
       let game = new BasketballGame(pGameId);
       game.run();
     });
   }
 
-  public static scheduleNow() {
+  public static scheduleNow():void {
     console.log("scheduling");
     scheduler.scheduleJob(new Date(), () => {
       console.log("JOB RUNNING");
     });
   }
 
-  public static scheduleAllGames() {
+  public static scheduleAllGames():void {
     // Fetches all the games for the day and schedules a task to monitor the game
     rp(ESPN.hiddenAPI).then((e) => {
       var data = JSON.parse(e);
