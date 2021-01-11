@@ -28,11 +28,14 @@ export class Twitter {
     }
 
     public sendTweet(pTweetMessage: string) {
-        
-        if(this.isDebug){
-            console.log("Fake Tweeting")
-            //console.log(pTweetMessage);
+        pTweetMessage += '\n';
+        if(this.isDebug) {
+            console.log("Fake Tweeting:")
+            console.log(pTweetMessage);
             return;
+        }
+        else {
+            console.log(`Tweeting:\n ${pTweetMessage}`);
         }
 
         var status = pTweetMessage;  // This is the tweet (ie status)
