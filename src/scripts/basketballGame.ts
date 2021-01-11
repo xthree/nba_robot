@@ -35,7 +35,7 @@ export class BasketballGame {
   public Event: event;
   public TweetEvents: GameEvent[] = [];
 
-  public isDebug: boolean = true;
+  public isDebug: boolean = false;
 
   public clockSeconds:number;
   public period: number;
