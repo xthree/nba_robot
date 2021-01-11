@@ -9,4 +9,4 @@ const fs = require("fs");
 const scheduler = require('node-schedule');
 
 // Schedule all games for the day
-Scheduler.scheduleAllScraperGames();
+Scheduler.scheduleAllAPIGames();
