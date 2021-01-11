@@ -1,396 +1,417 @@
 const rp = require("request-promise");
-const fs = require("fs");
+const EventEmitter = require("events");
+const eventEmitter = new EventEmitter();
 
 import { Twitter } from "./twitter";
-import { Team } from "./team";
 import { ESPN } from "./helpers/ESPN";
 import { Helpers } from "./helpers/helpers";
+import { Scheduler } from "./helpers/scheduler";
+import { BasketballGameScraper } from "./basketballGameScraper";
 
-let jsdom = require("jsdom");
-let $ = require("jquery")(new jsdom.JSDOM().window);
+export enum GameEventType {
+  Started = 0,
+  Eo1 = 1,//End of first Quarter
+  Eo2 = 2,
+  Eo3 = 3,
+  Eo4 = 4,
+  Final = 5,
+}
+
+export class GameEvent {
+  public type: GameEventType;
+  public finished: boolean;
+  constructor(pType: GameEventType) {
+    this.type = pType;
+    this.finished = false;
+  }
+}
 
 export class BasketballGame {
-  private isDebug: boolean = true;
-  private twitterBot: Twitter;
+  public gameId: string;
+  public gameStartDateTime: string; // eg 2021-01-11T01:00Z
+  public APIData: APIReturn;
+  public TwitterBot: Twitter;
 
-  private $pageWrapper: JQuery;
-  private $wrapper: JQuery;
-  public $headerWrapper: JQuery;
-  public $linescoreTable: JQuery;
+  public Event: event;
+  public TweetEvents: GameEvent[] = [];
 
-  private description: string;
-  public airingNetwork: string;
+  public isDebug: boolean = true;
 
-  private hasGameStarted = false;
-  private isConcluded: boolean = false;
-  private gameConcludedInOvertime: boolean = false;
+  public clockSeconds:number;
+  public period: number;
+  public statusDetail: string;
 
-  private gameId;
-  private URL: string;
+  public venueId: string;
+  public isPostponed: boolean;
+  public isStarted: boolean;
+  public isEndOfPeriod: boolean;
+  public isHalftime: boolean;
+  public isCompleted: boolean;
 
-  private currentQuarter: number;
-  public currentTime: string;
-  private lastTime: string; // Last game clock time
-  private lastCombinedScore: number; // Last combined score total
-  private hasScoreAndTimeChanged: boolean;
 
-  private isEndOfQuarter: boolean;
-  private haveDisplayedEndOfQuarter: boolean = false;
-  private haveDisplayedStartOfGame: boolean = false;
-  private haveDisplayedEndOfGame: boolean = false;
 
-  private homeTeam: Team;
-  private awayTeam: Team;
+  public awayTeamId:string;
+  public awayTeamName: string;
+  public awayTeamScore: string;
 
-  private outputLog: string = "";
+  public homeTeamId:string;
+  public homeTeamName: string;
+  public homeTeamScore: string;
 
-  constructor(gameId: string) {
-    this.gameId = gameId;
-    this.URL = ESPN.boxScore + gameId;
-    this.twitterBot = new Twitter(this.isDebug); // CHANGE THIS TO FALSE TO ENABLE TWEETING
-
-    this.fetchPageHTMLAsync().then((html) => {
-      this.setUpContainers(html);
-      this.initializeTeams();
-    });
+  public constructor(pGameId: string) {
+    console.log(pGameId);
+    this.gameId = pGameId;
+    this.TwitterBot = new Twitter(this.isDebug); // CHANGE THIS TO FALSE TO ENABLE TWEETING
   }
 
-  //returns true if sucessful save
-  private generateSaveFile(): object {
-    console.log("Generating Save File");
-
-    var gameFile = {
-      GameId: this.gameId,
-      GameURL: this.URL,
-      Competitors: this.awayTeam.name + "-" + this.homeTeam.name,
-      GameDescription: this.description,
-      AiringNetwork: this.airingNetwork,
-      AwayScore: this.getAwayTeamScore2(),
-      HomeScore: this.getHomeTeamScore2(),
-      AwayPlayers: this.awayTeam.players,
-      HomePlayers: this.homeTeam.players,
-      IsAccurate:
-        this.awayTeam.areScoresAccurate && this.homeTeam.areScoresAccurate,
-    };
-    console.log("Game was");
-    let gameJson = JSON.stringify(gameFile);
-
-    if (gameFile.IsAccurate) {
-      console.log("Score was accurate");
-    } else {
-      console.log("ERROR Inaccurate score");
-    }
-
-    // THIS IS USING NOW'S DATE. NOT GOOD. NEED GAME DATE
-    const date = new Date();
-    const dateTimeFormat = new Intl.DateTimeFormat("en", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-    });
-    const [
-      { value: month },
-      ,
-      { value: day },
-      ,
-      { value: year },
-    ] = dateTimeFormat.formatToParts(date);
-
-    var dateText = `${day}-${month}-${year}`;
-
-    var fileName = `${this.gameId}_${gameFile.Competitors}_${dateText}`;
-
-    if (this.isDebug) fileName += "_DEBUG";
-
-    Helpers.makeFile(gameFile, fileName);
-
-    fs.writeFile(`/home/pi/output/${fileName}.json`, gameJson, (e) => {
-      console.log(e);
-
-      console.log("Sucessfully Saved");
-    });
-
-    return gameFile;
+  public isTiedGame(): boolean {
+    return this.awayTeamScore == this.homeTeamScore;
   }
 
-  public refreshData(): JQueryPromise<any> {
-    return this.fetchPageHTMLAsync().then((html) => {
-      this.setUpContainers(html);
-      this.setUpTeamContainers();
-      this.updateGameData();
+  public initGame(): Promise<any> {
+    this.TweetEvents.push(new GameEvent(GameEventType.Started));
+    this.TweetEvents.push(new GameEvent(GameEventType.Eo1));
+    this.TweetEvents.push(new GameEvent(GameEventType.Eo2));
+    this.TweetEvents.push(new GameEvent(GameEventType.Eo3));
+    this.TweetEvents.push(new GameEvent(GameEventType.Eo4));
+    this.TweetEvents.push(new GameEvent(GameEventType.Final));
 
-      this.liveTweet();
-    });
-  }
-
-  // Returns a promsise that resolves when the game is finished and game files have been successfully saved
-  public run(): JQueryPromise<any> {
-    //@ts-ignore
     return new Promise((resolve, reject) => {
-      console.log("running");
-      let updateInterval = 10000;
+      this.fetchData().then(() => {
+        this.awayTeamId = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").team.id;
+        this.awayTeamName = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").team.name;
 
-      var intervalId = setInterval(() => {
-        this.refreshData().then(() => {
-          if (this.isConcluded) {
-            var game = this.generateSaveFile();
+        this.homeTeamId = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").team.id;
+        this.homeTeamName = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").team.name;
 
-            clearInterval(intervalId);
-            resolve(true);
-          }
-        });
-      }, updateInterval);
+        this.gameStartDateTime = this.Event.date;
+        this.venueId = this.Event.competitions[0].venue.id;
+
+        resolve(true);
+      });
     });
   }
 
-  public fetchPageHTMLAsync(): JQueryPromise<string> {
-    return rp(this.URL);
+  private fetchData(): JQueryPromise<any> {
+    return rp(ESPN.hiddenAPI).then((d: any) => {
+      this.APIData = JSON.parse(d);
+      this.Event = this.APIData.events.find((e) => e.id === this.gameId);
+    });
   }
 
-  public liveTweet() {
-    // First run through, always announce start of game.
-    if (this.hasGameStarted && !this.haveDisplayedStartOfGame) {
-      this.twitterBot.sendTweet(
-        `${this.awayTeam.name} ${this.homeTeam.name}\nGame has started`
-      );
+  private displayGameData() {
+    console.log(this.Event.competitions[0].status.type.detail); // 15.5 - 4th Quarter, End of 3rd Quarter, End of 4th Quarter, Final, Final/OT, Final/OT2
+    console.log(this.Event.status.displayClock); //15.5
+    console.log(this.Event.status.type.description); // In Progress, End of Period, Final
 
-      this.haveDisplayedStartOfGame = true;
+    let awayScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score;
+    let awayTeamName = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").team.name;
+
+    let homeScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score;
+    let homeTeamName = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").team.name;
+
+    console.log(`${awayTeamName}-${awayScore}`);
+    console.log(`${homeTeamName}-${homeScore}`);
+    console.log();
+  }
+
+  private getGameEventType(pGameEventType: GameEventType) {
+    let event = this.TweetEvents.find((e) => {
+      return e.type == pGameEventType;
+    });
+    return event;
+  }
+
+  private liveTweet() {
+    let event: GameEvent;
+
+    if (this.isPostponed) {
+      this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has been postponed`);
       return;
     }
 
-    // First run through, always announce end of game.
-    if (this.isConcluded && !this.haveDisplayedEndOfGame) {
-      let msg = `${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
+    if (this.isStarted) {
+      event = this.getGameEventType(GameEventType.Started);
 
-      this.twitterBot.sendTweet(msg);
-      this.haveDisplayedEndOfGame = true;
-      return;
-    }
-
-    // Block display
-    if (
-      (this.isEndOfQuarter && !this.haveDisplayedEndOfQuarter) ||
-      (!this.hasGameStarted && !this.haveDisplayedEndOfQuarter)
-    ) {
-      if (!this.hasGameStarted) {
-        let msg = "Game has not yet started";
-        this.outputLog += msg;
-        console.log(msg);
-        this.haveDisplayedEndOfQuarter = true;
-
-        return;
+      if (!event.finished) {
+        this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has started`);
+        event.finished = true;
       }
 
-      let msg = `${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
-      this.outputLog += msg;
+      let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
 
-      //Only tweet "End of 4th" if scores are tied and will go to overtime
-      if (
-        this.currentTime.includes("End") &&
-        this.currentTime.includes("4") &&
-        this.awayTeam.score == this.homeTeam.score
-      ) {
-        this.twitterBot.sendTweet(msg);
-      } else if (
-        this.currentTime.includes("End") &&
-        !this.currentTime.includes("4")
-      ) {
-        this.twitterBot.sendTweet(msg);
-      } else if (this.currentTime.includes("Half")) {
-        this.twitterBot.sendTweet(msg);
+      if (this.isEndOfPeriod || this.isHalftime) {
+        switch (this.period) {
+          case 1:
+            event = this.getGameEventType(GameEventType.Eo1);
+            break;
+          case 2:
+            event = this.getGameEventType(GameEventType.Eo2);
+            break;
+          case 3:
+            event = this.getGameEventType(GameEventType.Eo3);
+            break;
+          case 4:
+            event = this.getGameEventType(GameEventType.Eo4);
+            break;
+          default:
+            console.log("UNKNOWN PERIOD " + this.period);
+            break;
+        }
+
+        // Only tweet End of 4th if going into overtime / tied game
+        if (this.period == 4 && !this.isTiedGame()) {
+          //do nothing
+        } else {
+          if (!event.finished) {
+            this.TwitterBot.sendTweet(tweetMsg);
+            event.finished = true;
+          }
+        }
       }
+    }
 
-      this.haveDisplayedEndOfQuarter = true;
-      return;
-    } else if (
-      (this.isEndOfQuarter && this.haveDisplayedEndOfQuarter) ||
-      (!this.hasGameStarted && this.haveDisplayedEndOfQuarter)
-    ) {
-      return; //Wait until game starts again
+    if (this.isCompleted) {
+      event = this.getGameEventType(GameEventType.Final);
+      let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
+
+      this.TwitterBot.sendTweet(tweetMsg);
+      event.finished = true;
     }
   }
 
-  private updateLog() {
-    if (this.hasScoreAndTimeChanged || this.isConcluded) {
-      let msg = `${this.currentTime}  ${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
-      console.log(msg);
+  // Recursive-ish via scheduling next run of the same method
+  private getDataAsync(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.fetchData().then(() => {
+        //this.displayGameData();
 
-      this.outputLog += msg;
+        this.period = this.Event.competitions[0].status.period;
+        let statusType = this.Event.competitions[0].status.type;
+        this.statusDetail = statusType.shortDetail;
+
+        this.isPostponed = statusType.id == statusTypeEnum.STATUS_POSTPONED;
+
+        this.isStarted =
+          statusType.id == statusTypeEnum.STATUS_IN_PROGRESS ||
+          statusType.id == statusTypeEnum.STATUS_END_PERIOD ||
+          statusType.id == statusTypeEnum.STATUS_HALFTIME ||
+          statusType.id == statusTypeEnum.STATUS_FINAL;
+
+        this.clockSeconds = this.Event.status.clock;
+
+        this.isCompleted = statusType.id == statusTypeEnum.STATUS_FINAL;
+        this.isEndOfPeriod = statusType.id == statusTypeEnum.STATUS_END_PERIOD;
+        this.isHalftime = statusType.id == statusTypeEnum.STATUS_HALFTIME;
+
+        this.awayTeamScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score;
+        this.homeTeamScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score;
+
+        this.liveTweet();
+
+        // If postponed, end the game
+        if (this.isPostponed) {
+          return;
+        }
+
+        if (this.isCompleted) {
+          this.generateSave();
+          return 
+        } 
+
+        Scheduler.scheduleThis(() => {
+          this.getDataAsync();
+        }, this.getNextRefreshTime());          
+      });
+    });
+  }
+
+  public getNextRefreshTime(): Date {
+    let nextRefreshDate = new Date();
+
+    let nextRefreshSeconds = 0;
+
+    if (!this.isStarted) {
+      nextRefreshSeconds = (new Date(this.gameStartDateTime).getTime() - new Date().getTime()) / 1000;
+      console.log("game has not started waiting " + nextRefreshSeconds);
+    } else if ((this.isEndOfPeriod && this.period != 4) || this.isHalftime) {
+      nextRefreshSeconds = 60 * 3;
+      console.log("period has ended, waiting 3 mins to get proper updates");
     }
-  }
-
-  public updateGameData(): void {
-    this.description = this.$headerWrapper.find(".game-details").text().trim();
-    this.airingNetwork = this.$headerWrapper
-      .find(".game-status .network")
-      .text()
-      .trim();
-
-    this.hasGameStarted =
-      this.$wrapper.text().trim() != "No Box Score Available";
-
-    this.currentTime = this.$headerWrapper
-      .find(".game-status .game-time")
-      .text()
-      .trim();
-
-    let homeTeamScore = this.getHomeTeamScore2();
-    let awayTeamScore = this.getAwayTeamScore2();
-    let combinedScore = homeTeamScore + awayTeamScore;
-    this.isEndOfQuarter =
-      this.currentTime.includes("End") || this.currentTime.includes("Half");
-    this.isConcluded = this.currentTime.includes("Final");
-
-    this.hasScoreAndTimeChanged =
-      this.lastTime != this.currentTime &&
-      combinedScore != this.lastCombinedScore;
-
-    this.haveDisplayedEndOfQuarter =
-      this.hasScoreAndTimeChanged || this.isConcluded
-        ? false
-        : this.haveDisplayedEndOfQuarter;
-
-    this.homeTeam.updateTeamData(homeTeamScore, this.isConcluded);
-    this.awayTeam.updateTeamData(awayTeamScore, this.isConcluded);
-
-    this.lastTime = this.currentTime;
-    this.lastCombinedScore = combinedScore;
-  }
-
-  public setUpContainers(pHtml: string): void {
-    this.$pageWrapper = $(pHtml);
-    this.$wrapper = this.$pageWrapper.find("#gamepackage-box-score");
-    this.$headerWrapper = this.$pageWrapper.find("#gamepackage-matchup-wrap");
-    this.$linescoreTable = this.$pageWrapper.find("#linescore");
-  }
-
-  public setUpTeamContainers(): void {
-    this.homeTeam.updateContainer(this.$wrapper.find(".gamepackage-home-wrap"));
-    this.awayTeam.updateContainer(this.$wrapper.find(".gamepackage-away-wrap"));
-  }
-
-  public initializeTeams() {
-    // Home
-    let $homeWrapper = this.$wrapper.find(".gamepackage-home-wrap");
-    let $homeHeaderWrapper = this.$headerWrapper.find(".team.home");
-
-    let homeTeamUID = $homeHeaderWrapper
-      .find(".team-name")
-      .data("clubhouse-uid");
-    let homeTeamLocation = $homeHeaderWrapper.find(".long-name").text().trim();
-    let homeTeamName = $homeHeaderWrapper
-      .find(".team-name .short-name")
-      .text()
-      .trim();
-    let homeTeamNameAbbreviation = $homeHeaderWrapper
-      .find(".team-name .abbrev")
-      .text()
-      .trim();
-
-    this.homeTeam = new Team(
-      $homeWrapper,
-      homeTeamUID,
-      homeTeamLocation,
-      homeTeamName,
-      homeTeamNameAbbreviation,
-      true
-    );
-
-    // Away
-    let $awayWrapper = this.$wrapper.find(".gamepackage-away-wrap");
-    let $awayHeaderWrapper = this.$headerWrapper.find(".team.away");
-
-    let awayTeamUID = $awayHeaderWrapper
-      .find(".team-name")
-      .data("clubhouse-uid");
-    let awayTeamLocation = $awayHeaderWrapper
-      .find(".team-name .long-name")
-      .text()
-      .trim();
-    let awayTeamName = $awayHeaderWrapper
-      .find(".team-name .short-name")
-      .text()
-      .trim();
-    let awayTeamNameAbbreviation = $awayHeaderWrapper
-      .find(".team-name .abbrev")
-      .text()
-      .trim();
-
-    this.awayTeam = new Team(
-      $awayWrapper,
-      awayTeamUID,
-      awayTeamLocation,
-      awayTeamName,
-      awayTeamNameAbbreviation,
-      false
-    );
-  }
-
-  public getHomeTeamScore(): number {
-    return parseInt(
-      this.$headerWrapper.find(".team.home .score").text().trim()
-    );
-  }
-
-  public getAwayTeamScore(): number {
-    return parseInt(
-      this.$headerWrapper.find(".team.away .score").text().trim()
-    );
-  }
-
-  public getHomeTeamScore2(): number {
-    return parseInt(
-      this.$linescoreTable
-        .find("tbody tr")
-        .eq(1)
-        .find(".final-score")
-        .text()
-        .trim()
-    );
-  }
-
-  public getAwayTeamScore2(): number {
-    return parseInt(
-      this.$linescoreTable
-        .find("tbody tr")
-        .eq(0)
-        .find(".final-score")
-        .text()
-        .trim()
-    );
-  }
-
-  public getAwayQuarterScore(pQuarter: number): number {
-    const quarterScore = this.$linescoreTable
-      .find("tbody tr")
-      .eq(0)
-      .find("td")
-      .eq(pQuarter)
-      .text()
-      .trim();
-
-    // In case quarter has no number, e.g: "", to prevent NaN
-    if (quarterScore) {
-      return parseInt(quarterScore);
-    } else {
-      return 0;
+    else {
+      nextRefreshSeconds = this.clockSeconds
     }
+
+    // Ensure quickest refresh is 10 seconds
+    nextRefreshSeconds = nextRefreshSeconds < 10 ? 10 : nextRefreshSeconds;
+    nextRefreshDate.setSeconds(nextRefreshDate.getSeconds() + nextRefreshSeconds);
+
+    console.log(`${this.awayTeamName + "-" + this.homeTeamName} ${this.statusDetail} Next refresh: ${nextRefreshDate.toLocaleTimeString()}`);
+    return nextRefreshDate;
   }
 
-  public getHomeQuarterScore(pQuarter: number): number {
-    const quarterScore = this.$linescoreTable
-      .find("tbody tr")
-      .eq(1)
-      .find("td")
-      .eq(pQuarter)
-      .text()
-      .trim();
+  public generateSave(): any {
+    let basketballGameScraper = new BasketballGameScraper(this.gameId);
+    basketballGameScraper.init().then(() => {
 
-    // In case quarter has no number, e.g: "", to prevent NaN
-    if (quarterScore) {
-      return parseInt(quarterScore);
-    } else {
-      return 0;
-    }
+      let saveFile = {
+        GameId: this.gameId,
+        VenueId: this.venueId,
+        Date: this.Event.date,
+
+        GameURL: ESPN.boxScore + this.gameId,
+
+        Competitors: this.awayTeamName + "-" + this.homeTeamName,
+        GameDescription: this.Event.name,
+
+        AwayTeamId: this.awayTeamId,
+        AwayScore: this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score,
+        AwayPlayers: basketballGameScraper.generateTeamPlayerData(false),
+
+        HomeTeamId: this.homeTeamId, 
+        HomeScore: this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score,
+        HomePlayers: basketballGameScraper.generateTeamPlayerData(true),
+
+        IsAccurate: "Not implemented",
+      };
+
+      Helpers.makeFile(saveFile, this.generateFileName());
+    });
   }
+
+  private generateFileName(ret?): string {
+    return `${this.gameId}_${this.awayTeamName + "-" + this.homeTeamName}_${this.gameStartDateTime}`;
+  }
+
+  public run(): void {
+    this.startScheduleLoop();
+  }
+
+  private startScheduleLoop():void {
+    this.getDataAsync();
+  }
+}
+
+export class APIReturn {
+  public day: day;
+  public events: event[];
+}
+
+export class day {
+  public date: string;
+}
+export class seasonLite {
+  public year: number;
+  public type: number;
+}
+
+export class season {
+  public year: number;
+  public type: number;
+}
+
+export class league {}
+
+export class event {
+  public id: string;
+  public uid: string;
+  public date: string;
+  public name: string;
+  public shortName: string;
+  public competitions: competition[];
+  public links: link[];
+  public status: status;
+}
+
+export class link {
+  public language: string;
+  public href: string;
+  public text: string;
+  public shortText: string;
+  public isExternal: boolean;
+  public isPremium: boolean;
+}
+
+export class competition {
+  public id: string;
+  public uid: string;
+  public date: string;
+  public attendance: number;
+  public timeValid: boolean;
+  public neutralSite: boolean;
+  public conferenceCompetition: boolean;
+  public venue: venue;
+  public competitors: competitor[];
+  public notes: string[];
+  public status: status;
+  public startDate: string;
+  //public broadcasts: broadcast[];
+  //public geoBroadcasts: geoBroadcast[];
+  //public headlines: headline[];
+}
+
+export class status {
+  public clock: number;
+  public displayClock: string;
+  public period: number; //0 1 2 3 4
+  public type: statusType;
+}
+
+export class statusType {
+  public id: statusTypeEnum;
+  public name: string;
+  public state: string; // pre - in - post
+  public completed: boolean;
+  public description: string;
+  public detail: string;
+  public shortDetail: string;
+}
+
+export enum statusTypeEnum {
+  STATUS_SCHEDULED = 1,
+  STATUS_IN_PROGRESS = 2,
+  STATUS_FINAL = 3,
+  //STATUS_  = 4,
+  //STATUS_  = 5,
+  STATUS_POSTPONED = 6,
+  STATUS_END_PERIOD = 22,
+  STATUS_HALFTIME = 23,
+}
+
+export class venue {
+  public id: string;
+  public fullName: string;
+  public address: address;
+  public capacity: number;
+  public indoor: boolean;
+}
+
+export class address {
+  public city: string;
+  public state: string;
+}
+
+export class competitor {
+  public id: string;
+  public uid: string;
+  public type: string;
+  public order: number;
+  public homeAway: string;
+  public winner: boolean;
+  public team: team;
+  public score: string;
+}
+
+export class team {
+  public id: string;
+  public uid: string;
+  public location: string;
+  public name: string;
+  public abbreviation: string;
+  public displayName: string;
+  public shortDisplayName: string;
+  public color: string;
+  public alternateColor: string;
+  public isActive: boolean;
+  public score: string;
 }
