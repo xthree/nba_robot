@@ -1,4 +1,6 @@
 const rp = require("request-promise");
+const fs = require("fs");
+
 import { Twitter } from "./twitter";
 import { Team } from "./team";
 import { ESPN } from "./helpers/ESPN";
@@ -8,12 +10,13 @@ let jsdom = require("jsdom");
 let $ = require("jquery")(new jsdom.JSDOM().window);
 
 export class BasketballGame {
-  private fs;
+  private isDebug: boolean = true;
   private twitterBot: Twitter;
 
   private $pageWrapper: JQuery;
   private $wrapper: JQuery;
   public $headerWrapper: JQuery;
+  public $linescoreTable: JQuery;
 
   private description: string;
   public airingNetwork: string;
@@ -28,7 +31,7 @@ export class BasketballGame {
   private currentQuarter: number;
   public currentTime: string;
   private lastTime: string; // Last game clock time
-  private lastScore: number; // Last combined score total
+  private lastCombinedScore: number; // Last combined score total
   private hasScoreAndTimeChanged: boolean;
 
   private isEndOfQuarter: boolean;
@@ -41,11 +44,10 @@ export class BasketballGame {
 
   private outputLog: string = "";
 
-  constructor(gameId: string, fs: any) {
-    this.fs = fs;
+  constructor(gameId: string) {
     this.gameId = gameId;
     this.URL = ESPN.boxScore + gameId;
-    this.twitterBot = new Twitter(true); // CHANGE THIS TO FALSE TO ENABLE TWEETING
+    this.twitterBot = new Twitter(this.isDebug); // CHANGE THIS TO FALSE TO ENABLE TWEETING
 
     this.fetchPageHTMLAsync().then((html) => {
       this.setUpContainers(html);
@@ -54,24 +56,30 @@ export class BasketballGame {
   }
 
   //returns true if sucessful save
-  private generateSaveFile(): boolean {
+  private generateSaveFile(): object {
     console.log("Generating Save File");
+
     var gameFile = {
       GameId: this.gameId,
       GameURL: this.URL,
       Competitors: this.awayTeam.name + "-" + this.homeTeam.name,
       GameDescription: this.description,
       AiringNetwork: this.airingNetwork,
-      AwayScore: this.getAwayTeamScore(),
-      HomeScore: this.getHomeTeamScore(),
+      AwayScore: this.getAwayTeamScore2(),
+      HomeScore: this.getHomeTeamScore2(),
       AwayPlayers: this.awayTeam.players,
       HomePlayers: this.homeTeam.players,
+      IsAccurate:
+        this.awayTeam.areScoresAccurate && this.homeTeam.areScoresAccurate,
     };
+    console.log("Game was");
+    let gameJson = JSON.stringify(gameFile);
 
-    let isPlayerScoreAccurate =
-      this.awayTeam.areScoresAccurate && this.homeTeam.areScoresAccurate;
-
-    let json = JSON.stringify(gameFile);
+    if (gameFile.IsAccurate) {
+      console.log("Score was accurate");
+    } else {
+      console.log("ERROR Inaccurate score");
+    }
 
     // THIS IS USING NOW'S DATE. NOT GOOD. NEED GAME DATE
     const date = new Date();
@@ -92,34 +100,26 @@ export class BasketballGame {
 
     var fileName = `${this.gameId}_${gameFile.Competitors}_${dateText}`;
 
-    Helpers.makeFile(gameFile, fileName)
+    if (this.isDebug) fileName += "_DEBUG";
 
-    this.fs.writeFileSync(`/output/${fileName}.json`, json, (e) => {
-      console.log("error");
+    Helpers.makeFile(gameFile, fileName);
+
+    fs.writeFile(`/home/pi/output/${fileName}.json`, gameJson, (e) => {
       console.log(e);
+
+      console.log("Sucessfully Saved");
     });
 
-    // this.fs.writeFileSync(`/output/${fileName} Log.txt`, this.outputLog, (e) => {
-    //   console.log("error")
-    //   console.log(e);
-    // });
-
-    console.log("Sucessfully Saved");
-
-    // if score wasnt accurate return ffalse to note later
-    if (!isPlayerScoreAccurate) {
-      return false;
-    }
-
-    return true;
+    return gameFile;
   }
 
   public refreshData(): JQueryPromise<any> {
-    console.log("Refreshing Data");
     return this.fetchPageHTMLAsync().then((html) => {
       this.setUpContainers(html);
       this.setUpTeamContainers();
       this.updateGameData();
+
+      this.liveTweet();
     });
   }
 
@@ -128,24 +128,15 @@ export class BasketballGame {
     //@ts-ignore
     return new Promise((resolve, reject) => {
       console.log("running");
-      let updateInterval = 5000;
+      let updateInterval = 10000;
 
       var intervalId = setInterval(() => {
-        //console.log("refreshing")
         this.refreshData().then(() => {
-          //this.liveTweet();
           if (this.isConcluded) {
-            var accurateScore = this.generateSaveFile();
+            var game = this.generateSaveFile();
 
-            if (accurateScore) {
-              console.log("Score was accurate");
-              clearInterval(intervalId);
-              resolve(true);
-            } else {
-              console.log("ERROR Inaccurate score");
-              clearInterval(intervalId); // clearing only for gamefetcher's run, should actually run again remove this
-              resolve(false);
-            }
+            clearInterval(intervalId);
+            resolve(true);
           }
         });
       }, updateInterval);
@@ -162,14 +153,14 @@ export class BasketballGame {
       this.twitterBot.sendTweet(
         `${this.awayTeam.name} ${this.homeTeam.name}\nGame has started`
       );
-      this.haveDisplayedStartOfGame = true;
 
+      this.haveDisplayedStartOfGame = true;
       return;
     }
 
     // First run through, always announce end of game.
     if (this.isConcluded && !this.haveDisplayedEndOfGame) {
-      let msg = `\n${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
+      let msg = `${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
 
       this.twitterBot.sendTweet(msg);
       this.haveDisplayedEndOfGame = true;
@@ -190,11 +181,25 @@ export class BasketballGame {
         return;
       }
 
-      let msg = `\n${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
+      let msg = `${this.currentTime}\n${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
       this.outputLog += msg;
-      console.log(msg);
 
-      this.twitterBot.sendTweet(msg);
+      //Only tweet "End of 4th" if scores are tied and will go to overtime
+      if (
+        this.currentTime.includes("End") &&
+        this.currentTime.includes("4") &&
+        this.awayTeam.score == this.homeTeam.score
+      ) {
+        this.twitterBot.sendTweet(msg);
+      } else if (
+        this.currentTime.includes("End") &&
+        !this.currentTime.includes("4")
+      ) {
+        this.twitterBot.sendTweet(msg);
+      } else if (this.currentTime.includes("Half")) {
+        this.twitterBot.sendTweet(msg);
+      }
+
       this.haveDisplayedEndOfQuarter = true;
       return;
     } else if (
@@ -207,7 +212,7 @@ export class BasketballGame {
 
   private updateLog() {
     if (this.hasScoreAndTimeChanged || this.isConcluded) {
-      let msg = `\n${this.currentTime}  ${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
+      let msg = `${this.currentTime}  ${this.awayTeam.name}-${this.awayTeam.score} ${this.homeTeam.name}-${this.homeTeam.score}`;
       console.log(msg);
 
       this.outputLog += msg;
@@ -223,35 +228,43 @@ export class BasketballGame {
 
     this.hasGameStarted =
       this.$wrapper.text().trim() != "No Box Score Available";
+
     this.currentTime = this.$headerWrapper
       .find(".game-status .game-time")
       .text()
       .trim();
 
-    this.isEndOfQuarter = this.currentTime.includes("End") || this.currentTime.includes("Half");
+    let homeTeamScore = this.getHomeTeamScore2();
+    let awayTeamScore = this.getAwayTeamScore2();
+    let combinedScore = homeTeamScore + awayTeamScore;
+    this.isEndOfQuarter =
+      this.currentTime.includes("End") || this.currentTime.includes("Half");
     this.isConcluded = this.currentTime.includes("Final");
 
-    let homeTeamScore = this.getHomeTeamScore();
-    let awayTeamScore = this.getAwayTeamScore();
-    let combinedScore = homeTeamScore + awayTeamScore;
-
     this.hasScoreAndTimeChanged =
-      this.lastTime != this.currentTime && combinedScore != this.lastScore;
+      this.lastTime != this.currentTime &&
+      combinedScore != this.lastCombinedScore;
+
+    this.haveDisplayedEndOfQuarter =
+      this.hasScoreAndTimeChanged || this.isConcluded
+        ? false
+        : this.haveDisplayedEndOfQuarter;
 
     this.homeTeam.updateTeamData(homeTeamScore, this.isConcluded);
     this.awayTeam.updateTeamData(awayTeamScore, this.isConcluded);
 
     this.lastTime = this.currentTime;
-    this.lastScore = combinedScore;
+    this.lastCombinedScore = combinedScore;
   }
 
-  public setUpContainers(pHtml: string) {
+  public setUpContainers(pHtml: string): void {
     this.$pageWrapper = $(pHtml);
     this.$wrapper = this.$pageWrapper.find("#gamepackage-box-score");
     this.$headerWrapper = this.$pageWrapper.find("#gamepackage-matchup-wrap");
+    this.$linescoreTable = this.$pageWrapper.find("#linescore");
   }
 
-  public setUpTeamContainers() {
+  public setUpTeamContainers(): void {
     this.homeTeam.updateContainer(this.$wrapper.find(".gamepackage-home-wrap"));
     this.awayTeam.updateContainer(this.$wrapper.find(".gamepackage-away-wrap"));
   }
@@ -323,5 +336,61 @@ export class BasketballGame {
     return parseInt(
       this.$headerWrapper.find(".team.away .score").text().trim()
     );
+  }
+
+  public getHomeTeamScore2(): number {
+    return parseInt(
+      this.$linescoreTable
+        .find("tbody tr")
+        .eq(1)
+        .find(".final-score")
+        .text()
+        .trim()
+    );
+  }
+
+  public getAwayTeamScore2(): number {
+    return parseInt(
+      this.$linescoreTable
+        .find("tbody tr")
+        .eq(0)
+        .find(".final-score")
+        .text()
+        .trim()
+    );
+  }
+
+  public getAwayQuarterScore(pQuarter: number): number {
+    const quarterScore = this.$linescoreTable
+      .find("tbody tr")
+      .eq(0)
+      .find("td")
+      .eq(pQuarter)
+      .text()
+      .trim();
+
+    // In case quarter has no number, e.g: "", to prevent NaN
+    if (quarterScore) {
+      return parseInt(quarterScore);
+    } else {
+      return 0;
+    }
+  }
+
+  public getHomeQuarterScore(pQuarter: number): number {
+    const quarterScore = this.$linescoreTable
+      .find("tbody tr")
+      .eq(1)
+      .find("td")
+      .eq(pQuarter)
+      .text()
+      .trim();
+
+    // In case quarter has no number, e.g: "", to prevent NaN
+    if (quarterScore) {
+      return parseInt(quarterScore);
+    } else {
+      return 0;
+    }
   }
 }

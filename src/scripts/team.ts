@@ -49,6 +49,6 @@ export class Team {
         });
 
         this.areScoresAccurate = scoreCount == this.score;
-        this.areScoresAccurate ? "" : console.warn(`scores do not match. Expected ${this.score}. Got ${scoreCount}`)
+        this.areScoresAccurate ? "" : console.log(`scores do not match. Expected ${this.score}. Got ${scoreCount}`)
     }
 }
