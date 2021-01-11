@@ -19,7 +19,7 @@
   },
   "scripts": {
     "start": "node dist/app.js",
-    "test": "wat"
+    "test": "node dist/test.js"
   },
   "keywords": [
     "\"name\":",

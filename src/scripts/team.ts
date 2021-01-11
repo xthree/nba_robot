@@ -36,7 +36,7 @@ export class Team {
     }
 
     // Returns false if team score does not match added up player scores
-    public generatePlayerData() {
+    public generatePlayerData(): PlayerRow[] {
         let $players = this.$wrapper.find("tbody tr").not('.highlight');
         this.players = [];
 
@@ -48,6 +48,8 @@ export class Team {
             scoreCount += isNaN(this.players[i].points) ? 0 : this.players[i].points;
         });
 
+
+        return this.players;
         this.areScoresAccurate = scoreCount == this.score;
         this.areScoresAccurate ? "" : console.log(`scores do not match. Expected ${this.score}. Got ${scoreCount}`)
     }

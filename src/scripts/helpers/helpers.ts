@@ -5,24 +5,17 @@ const moment = require("moment");
 const rp = require("request-promise");
 const fs = require("fs");
 
-import { BasketballGame } from "../basketballGame";
+import { BasketballGameScraper } from "../basketballGameScraper";
 import { ESPN } from "./ESPN";
 import { GameFile } from "../interfaces/gameFile";
 
 export class Helpers {
-  // to do fix
-  public static makeFile(
-    pObject: any,
-    pFileName: string,
-    pFileLocation?: string
-  ) {
-    console.log("making file");
-    console.log("this does not work atm find out why");
+  public static makeFile(pObject: any, pFileName: string, pFileLocation?: string) {
+    console.log("making file " + pFileName);
     let objectString = JSON.stringify(pObject);
     let fileLocation = pFileLocation ? pFileLocation : "/output/";
     fs.writeFile(`${fileLocation}${pFileName}.json`, objectString, (e) => {
-      console.log("finishing writng")
-      console.log(e);
+      if (e) console.log(e);
     });
   }
 
