@@ -10,11 +10,14 @@ import { BasketballGameScraper } from "./basketballGameScraper";
 
 export enum GameEventType {
   Started = 0,
-  Eo1 = 1,//End of first Quarter
+  Eo1 = 1, //End of first Quarter
   Eo2 = 2,
   Eo3 = 3,
   Eo4 = 4,
   Final = 5,
+  EoOT = 6,
+  EoOT2 = 7,
+  EoOT3 = 8
 }
 
 export class GameEvent {
@@ -27,17 +30,17 @@ export class GameEvent {
 }
 
 export class BasketballGame {
+  private refreshCount = 0;
   public gameId: string;
   public gameStartDateTime: string; // eg 2021-01-11T01:00Z
-  public APIData: APIReturn;
-  public TwitterBot: Twitter;
+  private TwitterBot: Twitter;
 
   public Event: event;
   public TweetEvents: GameEvent[] = [];
 
   public isDebug: boolean = false;
 
-  public clockSeconds:number;
+  public clockSeconds: number; // Seconds left in period
   public period: number;
   public statusDetail: string;
 
@@ -48,13 +51,11 @@ export class BasketballGame {
   public isHalftime: boolean;
   public isCompleted: boolean;
 
-
-
-  public awayTeamId:string;
+  public awayTeamId: string;
   public awayTeamName: string;
   public awayTeamScore: string;
 
-  public homeTeamId:string;
+  public homeTeamId: string;
   public homeTeamName: string;
   public homeTeamScore: string;
 
@@ -94,8 +95,8 @@ export class BasketballGame {
 
   private fetchData(): JQueryPromise<any> {
     return rp(ESPN.hiddenAPI).then((d: any) => {
-      this.APIData = JSON.parse(d);
-      this.Event = this.APIData.events.find((e) => e.id === this.gameId);
+      let APIData: APIReturn = JSON.parse(d);
+      this.Event = APIData.events.find((e: event) => e.id === this.gameId);
     });
   }
 
@@ -182,6 +183,7 @@ export class BasketballGame {
 
   // Recursive-ish via scheduling next run of the same method
   private getDataAsync(): Promise<any> {
+    this.refreshCount++;
     return new Promise((resolve, reject) => {
       this.fetchData().then(() => {
         //this.displayGameData();
@@ -216,12 +218,13 @@ export class BasketballGame {
 
         if (this.isCompleted) {
           this.generateSave();
-          return 
-        } 
+          console.log(`Refreshes: ${this.refreshCount}`);
+          return;
+        }
 
         Scheduler.scheduleThis(() => {
           this.getDataAsync();
-        }, this.getNextRefreshTime());          
+        }, this.getNextRefreshTime());
       });
     });
   }
@@ -233,42 +236,42 @@ export class BasketballGame {
 
     if (!this.isStarted) {
       nextRefreshSeconds = (new Date(this.gameStartDateTime).getTime() - new Date().getTime()) / 1000;
-      console.log("game has not started waiting " + nextRefreshSeconds);
     } else if ((this.isEndOfPeriod && this.period != 4) || this.isHalftime) {
       nextRefreshSeconds = 60 * 3;
-      console.log("period has ended, waiting 3 mins to get proper updates");
-    }
-    else {
-      nextRefreshSeconds = this.clockSeconds
+    } else {
+      nextRefreshSeconds = this.clockSeconds;
     }
 
     // Ensure quickest refresh is 10 seconds
     nextRefreshSeconds = nextRefreshSeconds < 10 ? 10 : nextRefreshSeconds;
     nextRefreshDate.setSeconds(nextRefreshDate.getSeconds() + nextRefreshSeconds);
 
-    console.log(`${this.awayTeamName + "-" + this.homeTeamName} ${this.statusDetail} Next refresh: ${nextRefreshDate.toLocaleTimeString()}`);
+    console.log(
+      `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${
+        this.Event.status.type.detail}\nNext refresh: ${nextRefreshDate.toLocaleTimeString()}`
+    );
     return nextRefreshDate;
   }
 
   public generateSave(): any {
     let basketballGameScraper = new BasketballGameScraper(this.gameId);
     basketballGameScraper.init().then(() => {
-
       let saveFile = {
         GameId: this.gameId,
         VenueId: this.venueId,
         Date: this.Event.date,
+
+        AwayTeamId: this.awayTeamId,
+        HomeTeamId: this.homeTeamId,
 
         GameURL: ESPN.boxScore + this.gameId,
 
         Competitors: this.awayTeamName + "-" + this.homeTeamName,
         GameDescription: this.Event.name,
 
-        AwayTeamId: this.awayTeamId,
         AwayScore: this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score,
         AwayPlayers: basketballGameScraper.generateTeamPlayerData(false),
 
-        HomeTeamId: this.homeTeamId, 
         HomeScore: this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score,
         HomePlayers: basketballGameScraper.generateTeamPlayerData(true),
 
@@ -287,7 +290,7 @@ export class BasketballGame {
     this.startScheduleLoop();
   }
 
-  private startScheduleLoop():void {
+  private startScheduleLoop(): void {
     this.getDataAsync();
   }
 }
