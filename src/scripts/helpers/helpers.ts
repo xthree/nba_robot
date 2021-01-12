@@ -10,10 +10,23 @@ import { ESPN } from "./ESPN";
 import { GameFile } from "../interfaces/gameFile";
 
 export class Helpers {
+  public static getFileLocationByOS(): string {
+    switch (process.platform) {
+      case "win32":
+        return "/output/";
+        break;
+      case "linux":
+        return "/home/pi/output/";
+        break;
+    }
+  }
+
   public static makeFile(pObject: any, pFileName: string, pFileLocation?: string) {
     console.log("making file " + pFileName);
     let objectString = JSON.stringify(pObject);
-    let fileLocation = pFileLocation ? pFileLocation : "/output/";
+
+    let fileLocation = pFileLocation ? pFileLocation : this.getFileLocationByOS();
+
     fs.writeFile(`${fileLocation}${pFileName}.json`, objectString, (e) => {
       if (e) console.log(e);
     });
