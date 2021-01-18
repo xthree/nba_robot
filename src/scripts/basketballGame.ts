@@ -1,6 +1,4 @@
 const rp = require("request-promise");
-const EventEmitter = require("events");
-const eventEmitter = new EventEmitter();
 
 import { Twitter } from "./twitter";
 import { ESPN } from "./helpers/ESPN";
@@ -10,21 +8,18 @@ import { BasketballGameScraper } from "./basketballGameScraper";
 
 export enum GameEventType {
   Started = 0,
-  Eo1 = 1, //End of first Quarter
-  Eo2 = 2,
-  Eo3 = 3,
-  Eo4 = 4,
-  Final = 5,
-  EoOT = 6,
-  EoOT2 = 7,
-  EoOT3 = 8
+  EndOfPeriod = 1, //End of first Quarter
+  Final = 2,
 }
 
 export class GameEvent {
   public type: GameEventType;
+  public period: number;
   public finished: boolean;
-  constructor(pType: GameEventType) {
+
+  constructor(pType: GameEventType, pPeriod?: number) {
     this.type = pType;
+    this.period = pPeriod ? pPeriod : 0;
     this.finished = false;
   }
 }
@@ -38,7 +33,7 @@ export class BasketballGame {
   public Event: event;
   public TweetEvents: GameEvent[] = [];
 
-  public isDebug: boolean = false;
+  public isDebug: boolean;
 
   public clockSeconds: number; // Seconds left in period
   public period: number;
@@ -59,9 +54,10 @@ export class BasketballGame {
   public homeTeamName: string;
   public homeTeamScore: string;
 
-  public constructor(pGameId: string) {
+  public constructor(pGameId: string, pIsDebug: boolean) {
     console.log(pGameId);
     this.gameId = pGameId;
+    this.isDebug = pIsDebug ? pIsDebug : false;
     this.TwitterBot = new Twitter(this.isDebug); // CHANGE THIS TO FALSE TO ENABLE TWEETING
   }
 
@@ -70,12 +66,12 @@ export class BasketballGame {
   }
 
   public initGame(): Promise<any> {
-    this.TweetEvents.push(new GameEvent(GameEventType.Started));
-    this.TweetEvents.push(new GameEvent(GameEventType.Eo1));
-    this.TweetEvents.push(new GameEvent(GameEventType.Eo2));
-    this.TweetEvents.push(new GameEvent(GameEventType.Eo3));
-    this.TweetEvents.push(new GameEvent(GameEventType.Eo4));
-    this.TweetEvents.push(new GameEvent(GameEventType.Final));
+    this.TweetEvents.push(new GameEvent(GameEventType.Started, 0));
+    this.TweetEvents.push(new GameEvent(GameEventType.EndOfPeriod, 1));
+    this.TweetEvents.push(new GameEvent(GameEventType.EndOfPeriod, 2));
+    this.TweetEvents.push(new GameEvent(GameEventType.EndOfPeriod, 3));
+    this.TweetEvents.push(new GameEvent(GameEventType.EndOfPeriod, 4));
+    this.TweetEvents.push(new GameEvent(GameEventType.Final, 0));
 
     return new Promise((resolve, reject) => {
       this.fetchData().then(() => {
@@ -116,11 +112,12 @@ export class BasketballGame {
     console.log();
   }
 
-  private getGameEventType(pGameEventType: GameEventType) {
+  private getGameEventType(pGameEventType: GameEventType, pPeriod: number) {
     let event = this.TweetEvents.find((e) => {
-      return e.type == pGameEventType;
+      return e.type == pGameEventType && e.period == pPeriod;
     });
-    return event;
+
+    return event ? event : null;
   }
 
   private liveTweet() {
@@ -132,53 +129,45 @@ export class BasketballGame {
     }
 
     if (this.isStarted) {
-      event = this.getGameEventType(GameEventType.Started);
+      event = this.getGameEventType(GameEventType.Started, 0);
 
       if (!event.finished) {
         this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has started`);
         event.finished = true;
       }
+    }
 
+    if (this.isEndOfPeriod || this.isHalftime) {
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
+      // Only tweet End of 4th if going into overtime / tied game
+      if (this.period >= 4 && !this.isTiedGame()) {
+        return;
+      }
 
-      if (this.isEndOfPeriod || this.isHalftime) {
-        switch (this.period) {
-          case 1:
-            event = this.getGameEventType(GameEventType.Eo1);
-            break;
-          case 2:
-            event = this.getGameEventType(GameEventType.Eo2);
-            break;
-          case 3:
-            event = this.getGameEventType(GameEventType.Eo3);
-            break;
-          case 4:
-            event = this.getGameEventType(GameEventType.Eo4);
-            break;
-          default:
-            console.log("UNKNOWN PERIOD " + this.period);
-            break;
+      // If we are in the 4th quarter or overtime, and game is tied, add another game event for the next period
+      if (this.period >= 4 && this.isTiedGame()) {
+        if (!this.getGameEventType(GameEventType.EndOfPeriod, this.period + 1)) {
+          this.TweetEvents.push(new GameEvent(GameEventType.EndOfPeriod, this.period + 1));
         }
+      }
 
-        // Only tweet End of 4th if going into overtime / tied game
-        if (this.period == 4 && !this.isTiedGame()) {
-          //do nothing
-        } else {
-          if (!event.finished) {
-            this.TwitterBot.sendTweet(tweetMsg);
-            event.finished = true;
-          }
-        }
+      event = this.getGameEventType(GameEventType.EndOfPeriod, this.period);
+      if (!event.finished) {
+        this.TwitterBot.sendTweet(tweetMsg);
+        event.finished = true;
+        return;
       }
     }
 
     if (this.isCompleted) {
-      event = this.getGameEventType(GameEventType.Final);
+      event = this.getGameEventType(GameEventType.Final, 0);
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
 
       this.TwitterBot.sendTweet(tweetMsg);
       event.finished = true;
     }
+
+    return true;
   }
 
   // Recursive-ish via scheduling next run of the same method
@@ -235,6 +224,7 @@ export class BasketballGame {
     let nextRefreshSeconds = 0;
 
     if (!this.isStarted) {
+      // Calclulate number of seconds until the game is scheduled to start and try again
       nextRefreshSeconds = (new Date(this.gameStartDateTime).getTime() - new Date().getTime()) / 1000;
     } else if ((this.isEndOfPeriod && this.period != 4) || this.isHalftime) {
       nextRefreshSeconds = 60 * 3;
@@ -248,7 +238,8 @@ export class BasketballGame {
 
     console.log(
       `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${
-        this.Event.status.type.detail}\nNext refresh: ${nextRefreshDate.toLocaleTimeString()}`
+        this.Event.status.type.detail
+      }\nNext refresh: ${nextRefreshDate.toLocaleTimeString()}`
     );
     return nextRefreshDate;
   }
