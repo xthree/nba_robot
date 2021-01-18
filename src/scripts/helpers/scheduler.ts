@@ -59,13 +59,13 @@ export class Scheduler {
   }
 
 
-  public static scheduleAPIGame(pStartTime, pGameId): void {
+  public static scheduleAPIGame(pStartTime, pGameId, pIsDebug:boolean): void {
     scheduler.scheduleJob(pStartTime, (y) => {
-    var game = new BasketballGame(pGameId);
+    var game = new BasketballGame(pGameId,pIsDebug);
         game.initGame().then(() => game.run());});
   }
 
-  public static scheduleAllAPIGames():void {
+  public static scheduleAllAPIGames(pIsDebug:boolean):void {
     rp(ESPN.hiddenAPI).then((e) => {
       var data: APIReturn = JSON.parse(e);
 
@@ -75,7 +75,7 @@ export class Scheduler {
 
         if (gameStartTime < new Date()) {
             console.log("Game already started, running immediately");
-            let game = new BasketballGame(event.id);
+            let game = new BasketballGame(event.id, pIsDebug);
             game.initGame().then((e)=> {  game.run();  });
 
             continue;
@@ -84,7 +84,7 @@ export class Scheduler {
           console.log(
             `${event.name} scheduled for ${gameStartTime} ${event.id}` 
           );               
-          Scheduler.scheduleAPIGame(gameStartTime, event.id);
+          Scheduler.scheduleAPIGame(gameStartTime, event.id, pIsDebug);
         }
       }
     });
