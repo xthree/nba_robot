@@ -274,7 +274,7 @@ export class BasketballGame {
   }
 
   private generateFileName(ret?): string {
-    return `${this.gameId}_${this.awayTeamName + "-" + this.homeTeamName}_${this.gameStartDateTime}`;
+    return `${this.gameId}_${this.awayTeamName}-${this.homeTeamName}`;
   }
 
   public run(): void {

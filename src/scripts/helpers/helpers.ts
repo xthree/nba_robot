@@ -22,12 +22,15 @@ export class Helpers {
   }
 
   public static makeFile(pObject: any, pFileName: string, pFileLocation?: string) {
-    console.log("making file " + pFileName);
+// TODO CHECK FOR ILLEGAL CHARACTERS : messed it up from time
     let objectString = JSON.stringify(pObject);
 
     let fileLocation = pFileLocation ? pFileLocation : this.getFileLocationByOS();
+    let fullPath = `${fileLocation}${pFileName}.json`;
 
-    fs.writeFile(`${fileLocation}${pFileName}.json`, objectString, (e) => {
+    console.log("making file " + fullPath);
+    
+    fs.writeFile(fullPath, objectString, (e) => {
       if (e) console.log(e);
     });
   }
