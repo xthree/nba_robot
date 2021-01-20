@@ -119,6 +119,4 @@ export class Scheduler {
       return;
     });
   }
-
-
 }

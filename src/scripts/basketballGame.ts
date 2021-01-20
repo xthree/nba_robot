@@ -205,6 +205,7 @@ export class BasketballGame {
           return;
         }
 
+        // If game is over, make the save file and do not refresh the game again
         if (this.isCompleted) {
           this.generateSave();
           console.log(`Refreshes: ${this.refreshCount}`);
@@ -239,7 +240,7 @@ export class BasketballGame {
     console.log(
       `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${
         this.Event.status.type.detail
-      }\nNext refresh: ${nextRefreshDate.toLocaleTimeString()}`
+      }\nNext refresh: ${nextRefreshDate.toLocaleTimeString()}\n`
     );
     return nextRefreshDate;
   }
