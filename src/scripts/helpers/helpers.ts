@@ -22,7 +22,7 @@ export class Helpers {
   }
 
   public static makeFile(pObject: any, pFileName: string, pFileLocation?: string) {
-// TODO CHECK FOR ILLEGAL CHARACTERS : messed it up from time
+// TODO CHECK FOR ILLEGAL CHARACTERS : messed it up from placing gametime in filename
     let objectString = JSON.stringify(pObject);
 
     let fileLocation = pFileLocation ? pFileLocation : this.getFileLocationByOS();
