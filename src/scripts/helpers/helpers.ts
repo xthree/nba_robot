@@ -28,8 +28,8 @@ export class Helpers {
     let fileLocation = pFileLocation ? pFileLocation : this.getFileLocationByOS();
     let fullPath = `${fileLocation}${pFileName}.json`;
 
-    console.log("making file " + fullPath);
-    
+    console.log("Making file " + fullPath);
+
     fs.writeFile(fullPath, objectString, (e) => {
       if (e) console.log(e);
     });

@@ -1,11 +1,28 @@
-export class ESPN {
-    public static readonly schedule = `https://www.espn.com/nba/schedule/_/date/`; // ADD DATE YYYYMMDD
-    public static readonly boxScore = `https://www.espn.com/nba/boxscore?gameId=`; //ADD GAMEID
-    public static readonly gameCast = `https://www.espn.com/nba/game?gameId=`; //ADD GAMEID
-    
-    public static readonly hiddenAPI = `http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard`; // Add nothing, see 
-}
+import { APIReturn } from "../basketballGame";
+const rp = require("request");
 
+export class ESPN {
+  public static readonly schedule = `https://www.espn.com/nba/schedule/_/date/`; // ADD DATE YYYYMMDD
+  public static readonly boxScore = `https://www.espn.com/nba/boxscore?gameId=`; //ADD GAMEID
+  public static readonly gameCast = `https://www.espn.com/nba/game?gameId=`; //ADD GAMEID
+
+  public static readonly hiddenAPI = `http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard`; // Add nothing, see
+
+  public static async getAPIDate(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      rp(ESPN.hiddenAPI, (error, response, body) => {
+        var data: APIReturn = JSON.parse(body);
+
+        console.log(data.day.date);
+        if (error) reject(error);
+        if (response.statusCode != 200) {
+          reject("Invalid status code <" + response.statusCode + ">");
+        }
+        resolve(data.day.date);
+      });
+    });
+  }
+}
 // {
 //     leagues: [
 //       {
@@ -81,4 +98,4 @@ export class ESPN {
 //         status: [Object]
 //       }
 //     ]
-//   }
+//
