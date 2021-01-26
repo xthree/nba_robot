@@ -1,4 +1,4 @@
-import { BasketballGame } from "../basketballGame";
+import { BasketballGameScraper } from "../basketballGameScraper";
 import { Helpers } from "./helpers";
 const fs = require("fs");
 
@@ -20,12 +20,9 @@ export class GameFetcher {
   private createNextGame(pGameId) {
     this.index == 0 ? console.log("first game") : console.log("next game");
 
-    let game = new BasketballGame(pGameId);
+    let game = new BasketballGameScraper(pGameId);
 
-    return game.run().then((pInaccurateScore) => {
-      if (pInaccurateScore) {
-        this.inaccurateGameScore.push(pGameId);
-      }
+    return game.init().then(() => game.run()).then(() => {
 
       this.index++;
       let nextGameId = this.gameIdList[this.index];
@@ -35,7 +32,6 @@ export class GameFetcher {
         return this.createNextGame(nextGameId);
       } else {
         console.log("That was the last game");
-        Helpers.makeFile(this.inaccurateGameScore, "inaccurateGames.json");
       }
     });
   }
