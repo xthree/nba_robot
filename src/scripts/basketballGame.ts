@@ -15,12 +15,15 @@ export enum GameEventType {
 export class GameEvent {
   public type: GameEventType;
   public period: number;
+
+  public delayed: boolean; 
   public finished: boolean;
 
   constructor(pType: GameEventType, pPeriod?: number) {
     this.type = pType;
     this.period = pPeriod ? pPeriod : 0;
     this.finished = false;
+    this.delayed = false;
   }
 }
 
@@ -112,7 +115,7 @@ export class BasketballGame {
     console.log();
   }
 
-  private getGameEventType(pGameEventType: GameEventType, pPeriod: number) {
+  private getGameEventByType(pGameEventType: GameEventType, pPeriod: number) {
     let event = this.TweetEvents.find((e) => {
       return e.type == pGameEventType && e.period == pPeriod;
     });
@@ -129,7 +132,7 @@ export class BasketballGame {
     }
 
     if (this.isStarted) {
-      event = this.getGameEventType(GameEventType.Started, 0);
+      event = this.getGameEventByType(GameEventType.Started, 0);
 
       if (!event.finished) {
         this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has started`);
@@ -146,12 +149,12 @@ export class BasketballGame {
 
       // If we are in the 4th quarter or overtime, and game is tied, add another game event for the next period
       if (this.period >= 4 && this.isTiedGame()) {
-        if (!this.getGameEventType(GameEventType.EndOfPeriod, this.period + 1)) {
+        if (!this.getGameEventByType(GameEventType.EndOfPeriod, this.period + 1)) {
           this.TweetEvents.push(new GameEvent(GameEventType.EndOfPeriod, this.period + 1));
         }
       }
 
-      event = this.getGameEventType(GameEventType.EndOfPeriod, this.period);
+      event = this.getGameEventByType(GameEventType.EndOfPeriod, this.period);
       if (!event.finished) {
         this.TwitterBot.sendTweet(tweetMsg);
         event.finished = true;
@@ -160,7 +163,7 @@ export class BasketballGame {
     }
 
     if (this.isCompleted) {
-      event = this.getGameEventType(GameEventType.Final, 0);
+      event = this.getGameEventByType(GameEventType.Final, 0);
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
 
       this.TwitterBot.sendTweet(tweetMsg);
@@ -197,6 +200,27 @@ export class BasketballGame {
 
         this.awayTeamScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score;
         this.homeTeamScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score;
+
+        // Sometimes end of period is flagged, but score has not yet updated.
+        // Do one last check in 60 seconds to hopefully get a more accurate score 
+        // TD maybe find a way to detect inaccurate score  (exploded quarter score or tally up player scores on website)
+        if(this.isCompleted || this.isEndOfPeriod || this.isHalftime){
+          let eventType = (this.isEndOfPeriod || this.isHalftime) ? GameEventType.EndOfPeriod : GameEventType.Final;
+          let periodValue = (this.isEndOfPeriod || this.isHalftime) ? this.period : 0;
+          let event = this.getGameEventByType(eventType, periodValue);
+        
+
+          //If we havent delayed for this event yet, wait 60seconds beforew continuing
+          if(!event.delayed){
+            console.log(`Delaying for game event before tweeting`)
+            Scheduler.scheduleThis(() => {
+              this.getDataAsync();
+            }, Scheduler.addMinutesToNow(1));
+
+            event.delayed = true;
+            return;
+          }
+        }
 
         this.liveTweet();
 
