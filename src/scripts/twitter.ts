@@ -27,35 +27,51 @@ export class Twitter {
     );
   }
 
-  public sendTweet(pTweetMessage: string) {
-    pTweetMessage += "\n";
-    if (this.isDebug) {
-      console.log("Fake Tweeting:");
-      console.log(pTweetMessage);
-      return;
-    } else {
-      console.log(`Tweeting:\n ${pTweetMessage}`);
-    }
-
-    var status = pTweetMessage; // This is the tweet (ie status)
-
-    var postBody = {
-      status: status,
-    };
-
-    this.oauth.post(
-      "https://api.twitter.com/1.1/statuses/update.json",
-      this.twitter_user_access_token, // oauth_token (user access token)
-      this.twitter_user_secret, // oauth_secret (user secret)
-      postBody, // post body
-      "", // post content type ?
-      function (err, data, res) {
-        if (err) {
-          console.log(err);
-        } else {
-          // console.log(data);
-        }
+  public sendTweet(pTweetMessage: string, pReplyToId: string = null): Promise<any> {
+    return new Promise((resolve, reject) => {
+      pTweetMessage += "\n";
+      if (this.isDebug) {
+        console.log("Fake Tweeting:");
+        console.log(pTweetMessage);
+        return;
       }
-    );
+
+      console.log(`Tweeting:\n ${pTweetMessage}`);
+
+      let postBody = {
+        status: pTweetMessage,
+        in_reply_to_status_id: pReplyToId,
+      };
+
+      this.oauth.post(
+        "https://api.twitter.com/1.1/statuses/update.json",
+        this.twitter_user_access_token, // oauth_token (user access token)
+        this.twitter_user_secret, // oauth_secret (user secret)
+        postBody, // post body
+        "", // post content type ?
+        (err, data, res) => {
+          if (err) {
+            console.log("Errors detected");
+            console.log(err)
+            
+            let errors = JSON.parse(err.data).errors;
+            console.log(errors)
+
+            for (let error of errors) {
+              console.log("Error" + error.code + " " + error.message);
+              console.log();
+            }
+
+            reject("shit broke");
+          }
+
+          if (data) {
+            let parsedData = JSON.parse(data);
+            resolve(parsedData["id_str"]);
+          }
+
+        }
+      );
+    });
   }
 }
