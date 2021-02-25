@@ -15,12 +15,17 @@ export enum GameEventType {
 export class GameEvent {
   public type: GameEventType;
   public period: number;
+
+  public delayed: boolean;
   public finished: boolean;
+
+  public gameText: string; //Used to detect if score changed after EOP 60 second delay
 
   constructor(pType: GameEventType, pPeriod?: number) {
     this.type = pType;
     this.period = pPeriod ? pPeriod : 0;
     this.finished = false;
+    this.delayed = false;
   }
 }
 
@@ -29,6 +34,7 @@ export class BasketballGame {
   public gameId: string;
   public gameStartDateTime: string; // eg 2021-01-11T01:00Z
   private TwitterBot: Twitter;
+  private lastTweetId: string = null;
 
   public Event: event;
   public TweetEvents: GameEvent[] = [];
@@ -112,7 +118,7 @@ export class BasketballGame {
     console.log();
   }
 
-  private getGameEventType(pGameEventType: GameEventType, pPeriod: number) {
+  private getGameEventByType(pGameEventType: GameEventType, pPeriod: number) {
     let event = this.TweetEvents.find((e) => {
       return e.type == pGameEventType && e.period == pPeriod;
     });
@@ -121,24 +127,25 @@ export class BasketballGame {
   }
 
   private liveTweet() {
-    let event: GameEvent;
-
     if (this.isPostponed) {
       this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has been postponed`);
       return;
     }
 
     if (this.isStarted) {
-      event = this.getGameEventType(GameEventType.Started, 0);
+      let event = this.getGameEventByType(GameEventType.Started, 0);
 
       if (!event.finished) {
-        this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has started`);
+        this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has started`).then((tweetId) => {
+          this.lastTweetId = tweetId;
+        });
         event.finished = true;
       }
     }
 
     if (this.isEndOfPeriod || this.isHalftime) {
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
+
       // Only tweet End of 4th if going into overtime / tied game
       if (this.period >= 4 && !this.isTiedGame()) {
         return;
@@ -146,28 +153,58 @@ export class BasketballGame {
 
       // If we are in the 4th quarter or overtime, and game is tied, add another game event for the next period
       if (this.period >= 4 && this.isTiedGame()) {
-        if (!this.getGameEventType(GameEventType.EndOfPeriod, this.period + 1)) {
+        if (!this.getGameEventByType(GameEventType.EndOfPeriod, this.period + 1)) {
           this.TweetEvents.push(new GameEvent(GameEventType.EndOfPeriod, this.period + 1));
         }
       }
 
-      event = this.getGameEventType(GameEventType.EndOfPeriod, this.period);
+      let event = this.getGameEventByType(GameEventType.EndOfPeriod, this.period);
+
       if (!event.finished) {
-        this.TwitterBot.sendTweet(tweetMsg);
+        let isGameStatusTextDifferent = event.gameText != this.getGameStatusText();
+
+        if (isGameStatusTextDifferent) {
+          console.log();
+          console.log("Score was different since first detect of end of period");
+          console.log("Was: " + event.gameText);
+          console.log("Now: " + this.getGameStatusText());
+          console.log();
+        }
+
+        this.TwitterBot.sendTweet(tweetMsg, this.lastTweetId).then((tweetId) => {
+          this.lastTweetId = tweetId;
+        });
         event.finished = true;
         return;
       }
     }
 
     if (this.isCompleted) {
-      event = this.getGameEventType(GameEventType.Final, 0);
+      let event = this.getGameEventByType(GameEventType.Final, 0);
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
 
-      this.TwitterBot.sendTweet(tweetMsg);
+      let isGameStatusTextDifferent = event.gameText != this.getGameStatusText();
+
+      if (isGameStatusTextDifferent) {
+        console.log();
+        console.log("Score was different since first detect of end of period");
+        console.log("Was: " + event.gameText);
+        console.log("Now: " + this.getGameStatusText());
+        console.log();
+      }
+
+      this.TwitterBot.sendTweet(tweetMsg, this.lastTweetId).then((tweetId) => {
+        this.lastTweetId = tweetId;
+      });
+
       event.finished = true;
     }
 
     return true;
+  }
+
+  private getGameStatusText(): string {
+    return `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${this.Event.status.type.detail}`;
   }
 
   // Recursive-ish via scheduling next run of the same method
@@ -197,6 +234,30 @@ export class BasketballGame {
 
         this.awayTeamScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score;
         this.homeTeamScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score;
+
+        // Sometimes end of period is flagged, but score has not yet updated.
+        // Do one last check in 60 seconds to hopefully get a more accurate score
+        // TD maybe find a way to detect inaccurate score  (exploded quarter score or tally up player scores on website)
+        if (this.isCompleted || this.isEndOfPeriod || this.isHalftime) {
+          let eventType = this.isEndOfPeriod || this.isHalftime ? GameEventType.EndOfPeriod : GameEventType.Final;
+          let periodValue = this.isEndOfPeriod || this.isHalftime ? this.period : 0; // Return 0 for completed games, bc thats what we hardcoded into the event object for those.. //td take that 0 default out 
+          let event = this.getGameEventByType(eventType, periodValue);
+
+          //If we havent delayed for this event yet, wait 60seconds before  continuing
+          if (!event.delayed) {
+            console.log();
+            console.log(this.getGameStatusText());
+            console.log(`Delaying before tweeting`);
+            console.log();
+            Scheduler.scheduleThis(() => {
+              this.getDataAsync();
+            }, Scheduler.addMinutesToNow(1));
+
+            event.delayed = true;
+            event.gameText = this.getGameStatusText();
+            return;
+          }
+        }
 
         this.liveTweet();
 
@@ -348,7 +409,7 @@ export class competition {
 export class status {
   public clock: number;
   public displayClock: string;
-  public period: number; //0 1 2 3 4
+  public period: number; //Normal Game: 0 1 2 3 4 Overtime : 5 6.... etc
   public type: statusType;
 }
 
