@@ -26,13 +26,24 @@ export class Scheduler {
   }
   
   // Recursive-ish via scheduled recalls.  This runs the bot infinitely.
-  public static async dateRolloverCheck(pIsDebug:boolean) {
+  public static async dateRolloverCheck(pIsDebug:boolean, pSkipToday: boolean = false) {
     let currentAPIDate = await ESPN.getAPIDate();
 
     // Schedule all the games for the day and then reschedule tomorrow's api date check
 
     // Date format is YYYY-MM-DD which resolves to Zulu 2021-01-18 00:00. Must be converted into an American timezone by adding timezone offset hours.
     if (this.lastDate != currentAPIDate) {
+
+      if(pSkipToday){
+              let tomorrowDateTime = new Date(currentAPIDate);
+                // Turn Zulu time into MST (GMT-0700) at midnight then add 3 for 3AM then add 24 hours for tomorrow
+                tomorrowDateTime.setHours(tomorrowDateTime.getHours() + 7 + 3 + 24);
+                Scheduler.scheduleThis(() => Scheduler.dateRolloverCheck(pIsDebug), tomorrowDateTime);
+                console.log("Skipping initial day's games. See you tomorrow at " + tomorrowDateTime.toLocaleString() + " for a date rollover check"); 
+
+              return;
+      }
+
       this.scheduleAllAPIGames(pIsDebug).then((numberOfGames) => {
         this.lastDate = currentAPIDate;
         let nextScheduleDate = new Date(currentAPIDate);

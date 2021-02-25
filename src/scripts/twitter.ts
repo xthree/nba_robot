@@ -62,7 +62,7 @@ export class Twitter {
               console.log();
             }
 
-            reject("shit broke");
+            resolve("shit broke");
           }
 
           if (data) {
