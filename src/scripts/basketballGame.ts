@@ -145,6 +145,9 @@ export class BasketballGame {
 
     if (this.isEndOfPeriod || this.isHalftime) {
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
+      if(this.areTheJazzCrushing()){
+        tweetMsg += " #TheJazzAreCrushing #TakeNote";
+      }
 
       // Only tweet End of 4th if going into overtime / tied game
       if (this.period >= 4 && !this.isTiedGame()) {
@@ -183,6 +186,10 @@ export class BasketballGame {
       let event = this.getGameEventByType(GameEventType.Final, 0);
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
 
+      if(this.areTheJazzCrushing()){
+        tweetMsg += " #TheJazzHaveCrushed #TakeNote";
+      }
+
       let isGameStatusTextDifferent = event.gameText != this.getGameStatusText();
 
       if (isGameStatusTextDifferent) {
@@ -205,6 +212,33 @@ export class BasketballGame {
 
   private getGameStatusText(): string {
     return `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${this.Event.status.type.detail}`;
+  }
+
+  private areTheJazzCrushing(): boolean {
+    let JazzIsAwayTeam = this.awayTeamName == "Jazz";
+    let JazzIsHomeTeam = this.homeTeamName == "Jazz";
+
+    let isAJazzGame = JazzIsAwayTeam || JazzIsHomeTeam;
+
+
+    if (isAJazzGame) {
+      let JazzScore;
+      let OtherScore;
+
+      if (JazzIsAwayTeam) {
+        JazzScore = this.awayTeamScore;
+        OtherScore = this.homeTeamScore;
+      } else {
+        JazzScore = this.homeTeamScore;
+        OtherScore = this.awayTeamScore;
+      }
+
+      if (JazzScore - OtherScore >= 20) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // Recursive-ish via scheduling next run of the same method
@@ -240,7 +274,7 @@ export class BasketballGame {
         // TD maybe find a way to detect inaccurate score  (exploded quarter score or tally up player scores on website)
         if (this.isCompleted || this.isEndOfPeriod || this.isHalftime) {
           let eventType = this.isEndOfPeriod || this.isHalftime ? GameEventType.EndOfPeriod : GameEventType.Final;
-          let periodValue = this.isEndOfPeriod || this.isHalftime ? this.period : 0; // Return 0 for completed games, bc thats what we hardcoded into the event object for those.. //td take that 0 default out 
+          let periodValue = this.isEndOfPeriod || this.isHalftime ? this.period : 0; // Return 0 for completed games, bc thats what we hardcoded into the event object for those.. //td take that 0 default out
           let event = this.getGameEventByType(eventType, periodValue);
 
           //If we havent delayed for this event yet, wait 60seconds before  continuing
