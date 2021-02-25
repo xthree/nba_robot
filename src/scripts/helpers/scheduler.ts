@@ -19,6 +19,11 @@ export class Scheduler {
     });
   }
 
+  public static addMinutesToNow(pMinutesToAdd:number){
+    let date = new Date();
+    date.setMinutes(date.getMinutes() + pMinutesToAdd);
+    return date;
+  }
   
   // Recursive-ish via scheduled recalls.  This runs the bot infinitely.
   public static async dateRolloverCheck(pIsDebug:boolean) {
