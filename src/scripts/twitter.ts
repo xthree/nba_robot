@@ -7,9 +7,9 @@ export class Twitter {
   private twitter_application_secret: string;
   private twitter_user_access_token: string;
   private twitter_user_secret: string;
-  private isDebug;
+  private isDebug: boolean;
 
-  constructor(pIsDebug) {
+  constructor(pIsDebug: boolean) {
     this.isDebug = pIsDebug;
     this.twitter_application_consumer_key = "2SeL89M9cIrfk7MASkX8hP3CC"; // API Key
     this.twitter_application_secret = "5iAgRIgMIu663XXuB0h0nFGfvxhmP0TmkagoFfxSgyF40EkBql"; // API Secret
@@ -52,10 +52,10 @@ export class Twitter {
         (err, data, res) => {
           if (err) {
             console.log("Errors detected");
-            console.log(err)
-            
+            console.log(err);
+
             let errors = JSON.parse(err.data).errors;
-            console.log(errors)
+            console.log(errors);
 
             for (let error of errors) {
               console.log("Error" + error.code + " " + error.message);
@@ -67,9 +67,9 @@ export class Twitter {
 
           if (data) {
             let parsedData = JSON.parse(data);
+            // Resolve with the tweet's id
             resolve(parsedData["id_str"]);
           }
-
         }
       );
     });
