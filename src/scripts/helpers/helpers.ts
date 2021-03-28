@@ -16,7 +16,7 @@ export class Helpers {
         return "/output/";
         break;
       case "linux":
-        return "/home/pi/output/";
+        return "/home/nba_robot/output/";
         break;
     }
   }
