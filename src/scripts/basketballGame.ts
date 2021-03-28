@@ -365,7 +365,7 @@ export class BasketballGame {
         IsAccurate: "Not implemented",
       };
 
-      Helpers.makeFile(saveFile, this.generateFileName());
+      Helpers.makeJson(saveFile, this.generateFileName());
     });
   }
 

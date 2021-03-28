@@ -21,12 +21,19 @@ export class Helpers {
     }
   }
 
-  public static makeFile(pObject: any, pFileName: string, pFileLocation?: string) {
-// TODO CHECK FOR ILLEGAL CHARACTERS : messed it up from placing gametime in filename
+  public static makeJson(pObject: any, pFileName: string, pFileLocation?: string) {
+
+    // TODO CHECK FOR ILLEGAL CHARACTERS : messed it up from placing gametime in filename
     let objectString = JSON.stringify(pObject);
 
     let fileLocation = pFileLocation ? pFileLocation : this.getFileLocationByOS();
     let fullPath = `${fileLocation}${pFileName}.json`;
+
+
+    // If folder does not exist, create it
+    if (!fs.existsSync(fileLocation)) {
+      fs.mkdirSync(fileLocation);
+    }
 
     console.log("Making file " + fullPath);
 
