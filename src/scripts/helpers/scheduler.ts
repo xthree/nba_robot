@@ -52,7 +52,7 @@ export class Scheduler {
         
         Scheduler.scheduleThis(() => Scheduler.dateRolloverCheck(pIsDebug), refreshDate);
         console.log(
-          "Skipping initial day's games. See you tomorrow at " + refreshDate.toLocaleString() + " for a date rollover check"
+          "Skipping today's games. See you tomorrow at " + refreshDate.toLocaleString() + " for a date rollover check"
         );
 
         return;
@@ -62,8 +62,12 @@ export class Scheduler {
         this.lastDate = currentAPIDate;
         let nextScheduleDate = new Date(currentAPIDate);
 
-        // Turn Zulu time into MST (GMT-0700) at midnight then add 3 for 3AM then add 24 hours for tomorrow
-        nextScheduleDate.setHours(nextScheduleDate.getHours() + 7 + 3 + 24);
+        // Turn GMT time add 5 hours for EST at Midnight, then add 2 for 2AM
+
+        // GMT time: 0700
+        //  GMT-0500 EST 02:00 AM   
+        //  GMT-0400 EDT 03:00 AM
+        nextScheduleDate.setHours(nextScheduleDate.getHours() + 5 + 2 + 24);
 
         Scheduler.scheduleThis(() => Scheduler.dateRolloverCheck(pIsDebug), nextScheduleDate);
         console.log(" Games scheduled. See you again at " + nextScheduleDate.toLocaleString() + " for a date rollover check"
