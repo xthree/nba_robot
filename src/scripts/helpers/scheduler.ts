@@ -34,6 +34,7 @@ export class Scheduler {
     // Date format is YYYY-MM-DD which resolves to Zulu 2021-01-18 00:00. Must be converted into an American timezone by adding timezone offset hours.
     if (this.lastDate != currentAPIDate) {
 
+      // Skip scheduling today's game and set up for tomorrow instead (we have already tweeted out today's games is the usual reason)
       if (pSkipToday) {
         this.lastDate = currentAPIDate;
         let tomorrowDateTime = new Date(currentAPIDate);
