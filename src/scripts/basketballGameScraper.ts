@@ -114,7 +114,7 @@ export class BasketballGameScraper {
 
     if (this.isDebug) fileName += "_DEBUG";
 
-    Helpers.makeFile(gameFile, fileName);
+    Helpers.makeJson(gameFile, fileName);
 
     fs.writeFile(`/home/pi/output/${fileName}.json`, gameJson, (e) => {
       console.log(e);
