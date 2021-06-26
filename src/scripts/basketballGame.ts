@@ -1,6 +1,7 @@
 const rp = require("request-promise");
 
 import { Twitter } from "./twitter";
+import { NBA } from "./helpers/NBA";
 import { ESPN } from "./helpers/ESPN";
 import { Helpers } from "./helpers/helpers";
 import { Scheduler } from "./helpers/scheduler";
@@ -54,11 +55,11 @@ export class BasketballGame {
 
   public awayTeamId: string;
   public awayTeamName: string;
-  public awayTeamScore: string;
+  public awayTeamScore: number;
 
   public homeTeamId: string;
   public homeTeamName: string;
-  public homeTeamScore: string;
+  public homeTeamScore: number;
 
   public constructor(pGameId: string, pIsDebug: boolean) {
     console.log(pGameId);
@@ -145,8 +146,11 @@ export class BasketballGame {
 
     if (this.isEndOfPeriod || this.isHalftime) {
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
-      if(this.areTheJazzCrushing()){
-        tweetMsg += " #TheJazzAreCrushing #TakeNote";
+
+      let crushingTeamInfo = this.getTeamCrushingInfo();
+
+      if (crushingTeamInfo) {
+        tweetMsg += ` #The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag}`;
       }
 
       // Only tweet End of 4th if going into overtime / tied game
@@ -186,8 +190,10 @@ export class BasketballGame {
       let event = this.getGameEventByType(GameEventType.Final, 0);
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
 
-      if(this.areTheJazzCrushing()){
-        tweetMsg += " #TheJazzHaveCrushed #TakeNote";
+      let crushingTeamInfo = this.getTeamCrushingInfo();
+
+      if (crushingTeamInfo) {
+        tweetMsg += ` #The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag}`;
       }
 
       let isGameStatusTextDifferent = event.gameText != this.getGameStatusText();
@@ -214,31 +220,22 @@ export class BasketballGame {
     return `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${this.Event.status.type.detail}`;
   }
 
-  private areTheJazzCrushing(): boolean {
-    let JazzIsAwayTeam = this.awayTeamName == "Jazz";
-    let JazzIsHomeTeam = this.homeTeamName == "Jazz";
-
-    let isAJazzGame = JazzIsAwayTeam || JazzIsHomeTeam;
-
-
-    if (isAJazzGame) {
-      let JazzScore;
-      let OtherScore;
-
-      if (JazzIsAwayTeam) {
-        JazzScore = this.awayTeamScore;
-        OtherScore = this.homeTeamScore;
-      } else {
-        JazzScore = this.homeTeamScore;
-        OtherScore = this.awayTeamScore;
-      }
-
-      if (JazzScore - OtherScore >= 20) {
-        return true;
+  private getTeamCrushingInfo(): teamCrushingInfo | null {
+    if (this.awayTeamScore - this.homeTeamScore >= 20) {
+      return {
+        teamName: this.awayTeamName.split(" ").join(""),
+        teamHashtag: NBA.GetTeamByESPNId(this.awayTeamId).hashtag
       }
     }
-
-    return false;
+    else if (this.homeTeamScore - this.awayTeamScore >= 20) {
+      return {
+        teamName: this.homeTeamName.split(" ").join(""),
+        teamHashtag: NBA.GetTeamByESPNId(this.homeTeamId).hashtag
+      }
+    }
+    else {
+      return null;
+    }
   }
 
   // Recursive-ish via scheduling next run of the same method
@@ -266,8 +263,8 @@ export class BasketballGame {
         this.isEndOfPeriod = statusType.id == statusTypeEnum.STATUS_END_PERIOD;
         this.isHalftime = statusType.id == statusTypeEnum.STATUS_HALFTIME;
 
-        this.awayTeamScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score;
-        this.homeTeamScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score;
+        this.awayTeamScore = parseInt(this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score);
+        this.homeTeamScore = parseInt(this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score);
 
         // Sometimes end of period is flagged, but score has not yet updated.
         // Do one last check in 60 seconds to hopefully get a more accurate score
@@ -333,8 +330,7 @@ export class BasketballGame {
     nextRefreshDate.setSeconds(nextRefreshDate.getSeconds() + nextRefreshSeconds);
 
     console.log(
-      `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${
-        this.Event.status.type.detail
+      `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${this.Event.status.type.detail
       }\nNext refresh: ${nextRefreshDate.toLocaleTimeString()}\n`
     );
     return nextRefreshDate;
@@ -400,7 +396,7 @@ export class season {
   public type: number;
 }
 
-export class league {}
+export class league { }
 
 export class event {
   public id: string;
@@ -504,4 +500,9 @@ export class team {
   public alternateColor: string;
   public isActive: boolean;
   public score: string;
+}
+
+export interface teamCrushingInfo {
+  teamName: string
+  teamHashtag: string
 }
