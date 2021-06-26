@@ -6,4 +6,5 @@ import { Scheduler } from "./helpers/scheduler";
 let gamesForTodayAlreadyTweeted = process.env.npm_config_skip == 'true';
 
 // Start the bot
-Scheduler.dateRolloverCheck(false, gamesForTodayAlreadyTweeted);
+const isDebug = false;
+Scheduler.dateRolloverCheck(isDebug, gamesForTodayAlreadyTweeted);
