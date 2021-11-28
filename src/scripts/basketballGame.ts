@@ -137,7 +137,7 @@ export class BasketballGame {
       let event = this.getGameEventByType(GameEventType.Started, 0);
 
       if (!event.finished) {
-        this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has started`).then((tweetId) => {
+        this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has started\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`).then((tweetId) => {
           this.lastTweetId = tweetId;
         });
         event.finished = true;
@@ -152,6 +152,8 @@ export class BasketballGame {
       if (crushingTeamInfo) {
         tweetMsg += ` #The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag}`;
       }
+
+      tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
 
       // Only tweet End of 4th if going into overtime / tied game
       if (this.period >= 4 && !this.isTiedGame()) {
@@ -196,6 +198,8 @@ export class BasketballGame {
         tweetMsg += ` #The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag}`;
       }
 
+      tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+
       let isGameStatusTextDifferent = event.gameText != this.getGameStatusText();
 
       if (isGameStatusTextDifferent) {
@@ -217,7 +221,7 @@ export class BasketballGame {
   }
 
   private getGameStatusText(): string {
-    return `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${this.Event.status.type.detail}`;
+    return `${this.awayTeamName} -${this.awayTeamScore} ${this.homeTeamName} -${this.homeTeamScore} ${this.Event.status.type.detail} `;
   }
 
   private getTeamCrushingInfo(): teamCrushingInfo | null {
@@ -300,7 +304,7 @@ export class BasketballGame {
         // If game is over, make the save file and do not refresh the game again
         if (this.isCompleted) {
           this.generateSave();
-          console.log(`Refreshes: ${this.refreshCount}`);
+          console.log(`Refreshes: ${this.refreshCount} `);
           return;
         }
 
@@ -330,8 +334,8 @@ export class BasketballGame {
     nextRefreshDate.setSeconds(nextRefreshDate.getSeconds() + nextRefreshSeconds);
 
     console.log(
-      `${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore} ${this.Event.status.type.detail
-      }\nNext refresh: ${nextRefreshDate.toLocaleTimeString()}\n`
+      `${this.awayTeamName} -${this.awayTeamScore} ${this.homeTeamName} -${this.homeTeamScore} ${this.Event.status.type.detail
+      } \nNext refresh: ${nextRefreshDate.toLocaleTimeString()} \n`
     );
     return nextRefreshDate;
   }
@@ -366,7 +370,7 @@ export class BasketballGame {
   }
 
   private generateFileName(ret?): string {
-    return `${this.gameId}_${this.awayTeamName}-${this.homeTeamName}`;
+    return `${this.gameId}_${this.awayTeamName} -${this.homeTeamName} `;
   }
 
   public run(): void {
