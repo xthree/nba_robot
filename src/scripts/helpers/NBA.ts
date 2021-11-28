@@ -6,7 +6,7 @@ export class NBA {
       "teamName": "Atlanta Hawks",
       "mascot": "Hawks",
       "location": "Atlanta",
-      "hashtag": "BelieveAtlanta",
+      "hashtag": "TrueToAtlanta",
       "twitterHandle": "ATLHawks"
     },
     {
@@ -24,7 +24,7 @@ export class NBA {
       "teamName": "New Orleans Pelicans",
       "mascot": "Pelicans",
       "location": "New Orleans",
-      "hashtag": "WontBowDown",
+      "hashtag": "WBD",
       "twitterHandle": "PelicansNBA"
     },
     {
@@ -69,7 +69,7 @@ export class NBA {
       "teamName": "Detroit Pistons",
       "mascot": "Pistons",
       "location": "Detroit",
-      "hashtag": "DetroitUp",
+      "hashtag": "Pistons",
       "twitterHandle": "DetroitPistons"
     },
     {
@@ -96,7 +96,7 @@ export class NBA {
       "teamName": "Indiana Pacers",
       "mascot": "Pacers",
       "location": "Indiana",
-      "hashtag": "AlwaysGame",
+      "hashtag": "GoldBlooded",
       "twitterHandle": "Pacers"
     },
     {
@@ -123,7 +123,7 @@ export class NBA {
       "teamName": "Miami Heat",
       "mascot": "Heat",
       "location": "Miami",
-      "hashtag": "HeatTwitter",
+      "hashtag": "HEATCulture",
       "twitterHandle": "MiamiHEAT"
     },
     {
@@ -150,7 +150,7 @@ export class NBA {
       "teamName": "Brooklyn Nets",
       "mascot": "Nets",
       "location": "Brooklyn",
-      "hashtag": "NetsLevel",
+      "hashtag": "NetsWorld",
       "twitterHandle": "BrooklynNets"
     },
     {
@@ -186,7 +186,7 @@ export class NBA {
       "teamName": "Phoenix Suns",
       "mascot": "Suns",
       "location": "Phoenix",
-      "hashtag": "RallyTheValley",
+      "hashtag": "ValleyProud",
       "twitterHandle": "Suns"
     },
     {
@@ -213,7 +213,7 @@ export class NBA {
       "teamName": "San Antonio Spurs",
       "mascot": "Spurs",
       "location": "San Antonio",
-      "hashtag": "GoSpursGo",
+      "hashtag": "PorVida",
       "twitterHandle": "spurs"
     },
     {
