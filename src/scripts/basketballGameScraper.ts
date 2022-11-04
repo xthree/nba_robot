@@ -51,20 +51,19 @@ export class BasketballGameScraper {
 
   public init(): Promise<any> {
     return new Promise((resolve, error) => {
-  
       this.URL = ESPN.boxScore + this.gameId;
-      this.twitterBot = new Twitter(this.isDebug); // CHANGE THIS TO FALSE TO ENABLE TWEETING
-  
+      this.twitterBot = new Twitter(); // CHANGE THIS TO FALSE TO ENABLE TWEETING
+
       this.fetchPageHTMLAsync().then((html) => {
         this.setUpContainers(html);
         this.initializeTeams();
-        resolve("Init done")
+        resolve("Init done");
       });
     });
   }
 
-  public generateTeamPlayerData(pHomeTeam:boolean):PlayerRow[]{
-    return pHomeTeam ?  this.homeTeam.generatePlayerData() : this.awayTeam.generatePlayerData();
+  public generateTeamPlayerData(pHomeTeam: boolean): PlayerRow[] {
+    return pHomeTeam ? this.homeTeam.generatePlayerData() : this.awayTeam.generatePlayerData();
   }
 
   //returns true if sucessful save
@@ -81,8 +80,7 @@ export class BasketballGameScraper {
       HomeScore: this.getHomeTeamScore2(),
       AwayPlayers: this.awayTeam.players,
       HomePlayers: this.homeTeam.players,
-      IsAccurate:
-        this.awayTeam.areScoresAccurate && this.homeTeam.areScoresAccurate,
+      IsAccurate: this.awayTeam.areScoresAccurate && this.homeTeam.areScoresAccurate,
     };
     console.log("Game was");
     let gameJson = JSON.stringify(gameFile);
@@ -100,13 +98,7 @@ export class BasketballGameScraper {
       month: "short",
       day: "2-digit",
     });
-    const [
-      { value: month },
-      ,
-      { value: day },
-      ,
-      { value: year },
-    ] = dateTimeFormat.formatToParts(date);
+    const [{ value: month }, , { value: day }, , { value: year }] = dateTimeFormat.formatToParts(date);
 
     var dateText = `${day}-${month}-${year}`;
 
@@ -162,9 +154,7 @@ export class BasketballGameScraper {
   public liveTweet() {
     // First run through, always announce start of game.
     if (this.hasGameStarted && !this.haveDisplayedStartOfGame) {
-      this.twitterBot.sendTweet(
-        `${this.awayTeam.name} ${this.homeTeam.name}\nGame has started`
-      );
+      this.twitterBot.sendTweet(`${this.awayTeam.name} ${this.homeTeam.name}\nGame has started`);
 
       this.haveDisplayedStartOfGame = true;
       return;
@@ -180,10 +170,7 @@ export class BasketballGameScraper {
     }
 
     // Block display
-    if (
-      (this.isEndOfQuarter && !this.haveDisplayedEndOfQuarter) ||
-      (!this.hasGameStarted && !this.haveDisplayedEndOfQuarter)
-    ) {
+    if ((this.isEndOfQuarter && !this.haveDisplayedEndOfQuarter) || (!this.hasGameStarted && !this.haveDisplayedEndOfQuarter)) {
       if (!this.hasGameStarted) {
         let msg = "Game has not yet started";
         this.outputLog += msg;
@@ -197,16 +184,9 @@ export class BasketballGameScraper {
       this.outputLog += msg;
 
       //Only tweet "End of 4th" if scores are tied and will go to overtime
-      if (
-        this.currentTime.includes("End") &&
-        this.currentTime.includes("4") &&
-        this.awayTeam.score == this.homeTeam.score
-      ) {
+      if (this.currentTime.includes("End") && this.currentTime.includes("4") && this.awayTeam.score == this.homeTeam.score) {
         this.twitterBot.sendTweet(msg);
-      } else if (
-        this.currentTime.includes("End") &&
-        !this.currentTime.includes("4")
-      ) {
+      } else if (this.currentTime.includes("End") && !this.currentTime.includes("4")) {
         this.twitterBot.sendTweet(msg);
       } else if (this.currentTime.includes("Half")) {
         this.twitterBot.sendTweet(msg);
@@ -214,10 +194,7 @@ export class BasketballGameScraper {
 
       this.haveDisplayedEndOfQuarter = true;
       return;
-    } else if (
-      (this.isEndOfQuarter && this.haveDisplayedEndOfQuarter) ||
-      (!this.hasGameStarted && this.haveDisplayedEndOfQuarter)
-    ) {
+    } else if ((this.isEndOfQuarter && this.haveDisplayedEndOfQuarter) || (!this.hasGameStarted && this.haveDisplayedEndOfQuarter)) {
       return; //Wait until game starts again
     }
   }
@@ -233,34 +210,21 @@ export class BasketballGameScraper {
 
   public updateGameData(): void {
     this.description = this.$headerWrapper.find(".game-details").text().trim();
-    this.airingNetwork = this.$headerWrapper
-      .find(".game-status .network")
-      .text()
-      .trim();
+    this.airingNetwork = this.$headerWrapper.find(".game-status .network").text().trim();
 
-    this.hasGameStarted =
-      this.$wrapper.text().trim() != "No Box Score Available";
+    this.hasGameStarted = this.$wrapper.text().trim() != "No Box Score Available";
 
-    this.currentTime = this.$headerWrapper
-      .find(".game-status .game-time")
-      .text()
-      .trim();
+    this.currentTime = this.$headerWrapper.find(".game-status .game-time").text().trim();
 
     let homeTeamScore = this.getHomeTeamScore2();
     let awayTeamScore = this.getAwayTeamScore2();
     let combinedScore = homeTeamScore + awayTeamScore;
-    this.isEndOfQuarter =
-      this.currentTime.includes("End") || this.currentTime.includes("Half");
+    this.isEndOfQuarter = this.currentTime.includes("End") || this.currentTime.includes("Half");
     this.isConcluded = this.currentTime.includes("Final");
 
-    this.hasScoreAndTimeChanged =
-      this.lastTime != this.currentTime &&
-      combinedScore != this.lastCombinedScore;
+    this.hasScoreAndTimeChanged = this.lastTime != this.currentTime && combinedScore != this.lastCombinedScore;
 
-    this.haveDisplayedEndOfQuarter =
-      this.hasScoreAndTimeChanged || this.isConcluded
-        ? false
-        : this.haveDisplayedEndOfQuarter;
+    this.haveDisplayedEndOfQuarter = this.hasScoreAndTimeChanged || this.isConcluded ? false : this.haveDisplayedEndOfQuarter;
 
     this.homeTeam.updateTeamData(homeTeamScore, this.isConcluded);
     this.awayTeam.updateTeamData(awayTeamScore, this.isConcluded);
@@ -286,100 +250,43 @@ export class BasketballGameScraper {
     let $homeWrapper = this.$wrapper.find(".gamepackage-home-wrap");
     let $homeHeaderWrapper = this.$headerWrapper.find(".team.home");
 
-    let homeTeamUID = $homeHeaderWrapper
-      .find(".team-name")
-      .data("clubhouse-uid");
+    let homeTeamUID = $homeHeaderWrapper.find(".team-name").data("clubhouse-uid");
     let homeTeamLocation = $homeHeaderWrapper.find(".long-name").text().trim();
-    let homeTeamName = $homeHeaderWrapper
-      .find(".team-name .short-name")
-      .text()
-      .trim();
-    let homeTeamNameAbbreviation = $homeHeaderWrapper
-      .find(".team-name .abbrev")
-      .text()
-      .trim();
+    let homeTeamName = $homeHeaderWrapper.find(".team-name .short-name").text().trim();
+    let homeTeamNameAbbreviation = $homeHeaderWrapper.find(".team-name .abbrev").text().trim();
 
-    this.homeTeam = new Team(
-      $homeWrapper,
-      homeTeamUID,
-      homeTeamLocation,
-      homeTeamName,
-      homeTeamNameAbbreviation,
-      true
-    );
+    this.homeTeam = new Team($homeWrapper, homeTeamUID, homeTeamLocation, homeTeamName, homeTeamNameAbbreviation, true);
 
     // Away
     let $awayWrapper = this.$wrapper.find(".gamepackage-away-wrap");
     let $awayHeaderWrapper = this.$headerWrapper.find(".team.away");
 
-    let awayTeamUID = $awayHeaderWrapper
-      .find(".team-name")
-      .data("clubhouse-uid");
-    let awayTeamLocation = $awayHeaderWrapper
-      .find(".team-name .long-name")
-      .text()
-      .trim();
-    let awayTeamName = $awayHeaderWrapper
-      .find(".team-name .short-name")
-      .text()
-      .trim();
-    let awayTeamNameAbbreviation = $awayHeaderWrapper
-      .find(".team-name .abbrev")
-      .text()
-      .trim();
+    let awayTeamUID = $awayHeaderWrapper.find(".team-name").data("clubhouse-uid");
+    let awayTeamLocation = $awayHeaderWrapper.find(".team-name .long-name").text().trim();
+    let awayTeamName = $awayHeaderWrapper.find(".team-name .short-name").text().trim();
+    let awayTeamNameAbbreviation = $awayHeaderWrapper.find(".team-name .abbrev").text().trim();
 
-    this.awayTeam = new Team(
-      $awayWrapper,
-      awayTeamUID,
-      awayTeamLocation,
-      awayTeamName,
-      awayTeamNameAbbreviation,
-      false
-    );
+    this.awayTeam = new Team($awayWrapper, awayTeamUID, awayTeamLocation, awayTeamName, awayTeamNameAbbreviation, false);
   }
 
   public getHomeTeamScore(): number {
-    return parseInt(
-      this.$headerWrapper.find(".team.home .score").text().trim()
-    );
+    return parseInt(this.$headerWrapper.find(".team.home .score").text().trim());
   }
 
   public getAwayTeamScore(): number {
-    return parseInt(
-      this.$headerWrapper.find(".team.away .score").text().trim()
-    );
+    return parseInt(this.$headerWrapper.find(".team.away .score").text().trim());
   }
 
   public getHomeTeamScore2(): number {
-    return parseInt(
-      this.$linescoreTable
-        .find("tbody tr")
-        .eq(1)
-        .find(".final-score")
-        .text()
-        .trim()
-    );
+    return parseInt(this.$linescoreTable.find("tbody tr").eq(1).find(".final-score").text().trim());
   }
 
   public getAwayTeamScore2(): number {
-    return parseInt(
-      this.$linescoreTable
-        .find("tbody tr")
-        .eq(0)
-        .find(".final-score")
-        .text()
-        .trim()
-    );
+    return parseInt(this.$linescoreTable.find("tbody tr").eq(0).find(".final-score").text().trim());
   }
 
   public getAwayQuarterScore(pQuarter: number): number {
-    const quarterScore = this.$linescoreTable
-      .find("tbody tr")
-      .eq(0)
-      .find("td")
-      .eq(pQuarter)
-      .text()
-      .trim();
+    const quarterScore = this.$linescoreTable.find("tbody tr").eq(0).find("td").eq(pQuarter).text().trim();
 
     // In case quarter has no number, e.g: "", to prevent NaN
     if (quarterScore) {
@@ -390,13 +297,7 @@ export class BasketballGameScraper {
   }
 
   public getHomeQuarterScore(pQuarter: number): number {
-    const quarterScore = this.$linescoreTable
-      .find("tbody tr")
-      .eq(1)
-      .find("td")
-      .eq(pQuarter)
-      .text()
-      .trim();
+    const quarterScore = this.$linescoreTable.find("tbody tr").eq(1).find("td").eq(pQuarter).text().trim();
 
     // In case quarter has no number, e.g: "", to prevent NaN
     if (quarterScore) {
