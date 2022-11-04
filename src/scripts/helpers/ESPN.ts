@@ -1,5 +1,5 @@
 import { APIReturn } from "../basketballGame";
-const rp = require("request");
+const rp = require("request-promise");
 
 export class ESPN {
   public static readonly schedule = `https://www.espn.com/nba/schedule/_/date/`; // ADD DATE YYYYMMDD
@@ -13,8 +13,11 @@ export class ESPN {
       rp(ESPN.hiddenAPI, (error, response, body) => {
         var data: APIReturn = JSON.parse(body);
 
-        console.log(data.day.date);
-        if (error) reject(error);
+        if (error) {
+          console.log("CAUGHT ERROR getAPIDate", data.day.date);
+          console.log(error);
+          reject(error);
+        }
         if (response.statusCode != 200) {
           reject("Invalid status code <" + response.statusCode + ">");
         }

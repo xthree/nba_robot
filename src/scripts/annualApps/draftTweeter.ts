@@ -9,7 +9,7 @@ const rp = require("request-promise");
 //Create Object and .run()
 
 export class DraftTweeter {
-    public Tweeter = new Twitter(false);
+    public Tweeter = new Twitter();
     public teams: any[];
   
     public haveTweetedArray = [];
