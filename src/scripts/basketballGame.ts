@@ -21,12 +21,14 @@ export class GameEvent {
   public finished: boolean;
 
   public gameText: string; //Used to detect if score changed after EOP 60 second delay
+  private isDebug: boolean;
 
   constructor(pType: GameEventType, pPeriod?: number) {
     this.type = pType;
     this.period = pPeriod ? pPeriod : 0;
     this.finished = false;
     this.delayed = false;
+    this.isDebug = process.env.isDebug === "true";
   }
 }
 
@@ -341,6 +343,7 @@ export class BasketballGame {
   }
 
   public generateSave(): any {
+    if (this.isDebug) return;
     let basketballGameScraper = new BasketballGameScraper(this.gameId);
     basketballGameScraper.init().then(() => {
       let saveFile = {
