@@ -6,13 +6,13 @@ const keys = {
     twitter_user_secret: "gsWYCH4fA7vz4k7Da0A7mhqUlag1pbDy42TrktvkHUdYI",
   },
   test: {
-    twitter_application_consumer_key: "XOLVMOR9qjeoqH3XOO3sxRvLn",
-    twitter_application_secret: "fQno033A9sT3T6oh6lkbPGq0RWVX5eJvbTHZWAKKIxXeJgWX46",
-    twitter_user_access_token: "14364318-uxawxREZbB5XQKaN8Eii7XMAuVZNM2OEQjLQ4nHQv",
+    twitter_application_consumer_key: "appkEN3CAZvKWUTGTfV6BtjYg",
+    twitter_application_secret: "oK8MlAXtrdAMXth9pMFS0BTesZqlpZiHUa0BolU8c0ePFU7m32",
+    twitter_user_access_token: "1588660592835170305-iAREsK28rcw04jlRF1tPjqNn6CwSwZ",
     twitter_user_secret: "Tn6C4M6Dsohms50s6CPvCMwqiCaeVAmNffbbNqCty6D2x",
   },
 };
 
 export default keys;
 
-//test bearerToken :AAAAAAAAAAAAAAAAAAAAAGDLiwEAAAAALJ2qvjvdlHl0%2BGativIWgPuZjkM%3D9vHk245vlw2p6nsyf3xUh8SPw5juotgJZB8H2Smwd7crzwWdOk
+//test bearerToken AAAAAAAAAAAAAAAAAAAAADLNiwEAAAAAlbz4IrwKYb1sK9jKRcb%2Bhry7PwQ%3DbTH6AwOqRlxTaScQMX0cYWONBZUj4yCi9JDRWFbOGl0atCOHTs
