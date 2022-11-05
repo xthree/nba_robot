@@ -6,10 +6,10 @@ const keys = {
     twitter_user_secret: "gsWYCH4fA7vz4k7Da0A7mhqUlag1pbDy42TrktvkHUdYI",
   },
   test: {
-    twitter_application_consumer_key: "appkEN3CAZvKWUTGTfV6BtjYg",
-    twitter_application_secret: "oK8MlAXtrdAMXth9pMFS0BTesZqlpZiHUa0BolU8c0ePFU7m32",
-    twitter_user_access_token: "1588660592835170305-iAREsK28rcw04jlRF1tPjqNn6CwSwZ",
-    twitter_user_secret: "Tn6C4M6Dsohms50s6CPvCMwqiCaeVAmNffbbNqCty6D2x",
+    twitter_application_consumer_key: "r912KOTgGKrAJ8hDEx7VLec5s", // API Key
+    twitter_application_secret: "2EI3HcucNUaxiEptaoMAmtW2HWbcw3xkE9cXwAQEu6qtpsBSbc", // API secret
+    twitter_user_access_token: "1588660592835170305-Rlbtc776Ay3pD6EWrHwy7Rylfh7exe", // Access Token
+    twitter_user_secret: "W44msViGPefhKSrZiDRD73aLcAvTu9ClATBpFFS9xDEF7", // Access Token Secret
   },
 };
 
