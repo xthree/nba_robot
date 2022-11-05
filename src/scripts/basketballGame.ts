@@ -138,9 +138,9 @@ export class BasketballGame {
       let event = this.getGameEventByType(GameEventType.Started, 0);
 
       if (!event.finished) {
-        this.TwitterBot.sendTweet(
-          `${this.awayTeamName} ${this.homeTeamName}\nGame has started\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`
-        ).then((tweetId) => {
+        let tweetMsg = `${this.awayTeamName} ${this.homeTeamName}\nGame has started`;
+        if (!this.isDebug) tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+        this.TwitterBot.sendTweet(tweetMsg).then((tweetId) => {
           this.lastTweetId = tweetId;
         });
         event.finished = true;
@@ -155,8 +155,9 @@ export class BasketballGame {
       if (crushingTeamInfo) {
         tweetMsg += ` #The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag}`;
       }
-
-      tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+      if (!this.isDebug) {
+        tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+      }
 
       // Only tweet End of 4th if going into overtime / tied game
       if (this.period >= 4 && !this.isTiedGame()) {
@@ -201,7 +202,9 @@ export class BasketballGame {
         tweetMsg += ` #The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag}`;
       }
 
-      tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+      if (!this.isDebug) {
+        tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+      }
 
       let isGameStatusTextDifferent = event.gameText != this.getGameStatusText();
 
