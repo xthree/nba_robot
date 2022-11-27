@@ -128,6 +128,14 @@ export class BasketballGame {
     return event ? event : null;
   }
 
+  private get69ScoreText() {
+    let text = "";
+    if (this.awayTeamScore == 69) text += "#Nice";
+    if (this.awayTeamScore == 69 && this.homeTeamScore == 69) text += " ";
+    if (this.homeTeamScore == 69) text += "#Nice";
+    return text;
+  }
+
   private liveTweet() {
     if (this.isPostponed) {
       this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has been postponed`);
@@ -155,6 +163,9 @@ export class BasketballGame {
       if (crushingTeamInfo) {
         tweetMsg += ` #The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag}`;
       }
+
+      tweetMsg += this.get69ScoreText();
+
       if (!this.isDebug) {
         tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
       }
@@ -201,6 +212,8 @@ export class BasketballGame {
       if (crushingTeamInfo) {
         tweetMsg += ` #The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag}`;
       }
+
+      tweetMsg += this.get69ScoreText();
 
       if (!this.isDebug) {
         tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
