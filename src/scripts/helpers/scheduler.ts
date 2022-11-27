@@ -6,9 +6,11 @@ import { APIReturn } from "../basketballGame";
 import { BasketballGame } from "../basketballGame";
 
 import { ESPN } from "./ESPN";
+import { addHoursToTime, addMinutesToTime, isDateInThePast, setDateRolloverDateTime } from "../utils/dateHelper";
 
 export class Scheduler {
   public static lastDate: string;
+  public static currentAPIDate: string;
 
   //Scheduler
   public static scheduleThis(pFunction: Function, pScheduleDateTime: Date): void {
@@ -25,67 +27,63 @@ export class Scheduler {
     return date;
   }
 
-  // Recursive-ish via scheduled recalls.  This runs the bot infinitely.
-  public static async dateRolloverCheck(pIsDebug: boolean, pSkipToday: boolean = false) {
-    let currentAPIDate = await ESPN.getAPIDate();
+  public static getNextAPIRefreshDate() {
+    return setDateRolloverDateTime(addHoursToTime(new Date(this.currentAPIDate), 24));
+  }
+
+  public static scheduleTomorrowsRollover() {
+    this.scheduleRolloverCheck(this.getNextAPIRefreshDate());
+    console.log("See you tomorrow");
+    this.lastDate = this.currentAPIDate;
+  }
+
+  public static scheduleRolloverCheck(date: Date) {
+    Scheduler.scheduleThis(() => Scheduler.dateRolloverCheck(), date);
+    console.log("Next date rollover check at: " + date.toLocaleString());
+  }
+
+  public static firstRunSkipTodayScheduling() {
+    console.log("Skipping today's games");
+
+    // In the case we are skipping the actual day, but the api hasn't updated the date yet, check again every 5 minutes.
+
+    // Use case: the current real time is Jan 2 at 6am, but the API's date has not updated and is still at Jan 1.
+    // The next refresh date using the API date is Jan 2 at 3am. Since it is 6am, this date is in the past and we can't schedule in the past.
+    // Instead check every 5 minutes until the API updates. When it does eventually rollover,
+    if (isDateInThePast(this.getNextAPIRefreshDate())) {
+      this.scheduleRolloverCheck(addMinutesToTime(new Date(), 5));
+      return;
+    }
+
+    // If the next refresh date is in the future, go ahead and schedule it
+    this.scheduleTomorrowsRollover();
+  }
+
+  // Recursive-ish via scheduled recalls.  This runs the bot indefinitely when first called from app.ts
+  public static async dateRolloverCheck(pSkipToday: boolean = false) {
+    const fetchedAPIDate = await ESPN.getAPIDate(); // Date format is YYYY-MM-DD which resolves to Zulu 2021-01-18 00:00. Must be converted into an American timezone by adding timezone offset hours.
+
+    // If it's the same date, check again in 30 minutes
+    if (this.lastDate === fetchedAPIDate) {
+      this.scheduleRolloverCheck(addMinutesToTime(new Date(), 30));
+      console.log("Checking again in 30 minutes");
+      return;
+    }
+
+    this.currentAPIDate = fetchedAPIDate;
+    // Skip scheduling today's game and set up for tomorrow instead (we have already tweeted out today's games is the usual reason)
+    if (pSkipToday) {
+      this.firstRunSkipTodayScheduling();
+      return;
+    }
 
     // Schedule all the games for the day and then reschedule tomorrow's api date check
+    this.scheduleAllAPIGames().then(() => {
+      console.log("Games scheduled for " + new Date(this.lastDate).toLocaleDateString());
+      this.scheduleTomorrowsRollover();
+    });
 
-    // Date format is YYYY-MM-DD which resolves to Zulu 2021-01-18 00:00. Must be converted into an American timezone by adding timezone offset hours.
-    if (this.lastDate != currentAPIDate) {
-
-      // Skip scheduling today's game and set up for tomorrow instead (we have already tweeted out today's games is the usual reason)
-      if (pSkipToday) {
-        this.lastDate = currentAPIDate;
-        let tomorrowDateTime = new Date(currentAPIDate);
-
-        // Turn GMT time add 5 hours for EST at Midnight, then add 2 for 2AM
-
-        // GMT time: 0700
-        //  GMT-0500 EST 02:00 AM   
-        //  GMT-0400 EDT 03:00 AM
-        tomorrowDateTime.setHours(tomorrowDateTime.getHours() + 5 + 2 + 24);
-        let nowDate = new Date();
-        let refreshDate;
-
-        if (tomorrowDateTime < nowDate) {
-          refreshDate = nowDate.setMinutes(nowDate.getMinutes() + 5);
-        }
-        else {
-          refreshDate = tomorrowDateTime;
-        }
-
-        Scheduler.scheduleThis(() => Scheduler.dateRolloverCheck(pIsDebug), refreshDate);
-        console.log(
-          "Skipping today's games. See you tomorrow at " + refreshDate.toLocaleString() + " for a date rollover check"
-        );
-
-        return;
-      }
-
-      this.scheduleAllAPIGames(pIsDebug).then(() => {
-        this.lastDate = currentAPIDate;
-        let nextScheduleDate = new Date(currentAPIDate);
-
-        // Turn GMT time add 5 hours for EST at Midnight, then add 2 for 2AM
-
-        // GMT time: 0700
-        //  GMT-0500 EST 02:00 AM   
-        //  GMT-0400 EDT 03:00 AM
-        nextScheduleDate.setHours(nextScheduleDate.getHours() + 5 + 2 + 24);
-
-        Scheduler.scheduleThis(() => Scheduler.dateRolloverCheck(pIsDebug), nextScheduleDate);
-        console.log("Games scheduled. See you again at " + nextScheduleDate.toLocaleString() + " for a date rollover check"
-        );
-      });
-    } else {
-      // After 3am, check every 30mins
-      let date = new Date();
-      date.setMinutes(date.getMinutes() + 30);
-      Scheduler.scheduleThis(() => Scheduler.dateRolloverCheck(pIsDebug), date);
-
-      console.log("Next 30 minute date rollover check at " + date.toLocaleString());
-    }
+    return;
   }
 
   public static scheduleScraperGame(pStartTime, pGameId): void {
@@ -127,14 +125,14 @@ export class Scheduler {
     });
   }
 
-  public static scheduleAPIGame(pStartTime, pGameId, pIsDebug: boolean): void {
+  public static scheduleAPIGame(pStartTime, pGameId): void {
     scheduler.scheduleJob(pStartTime, (y) => {
-      var game = new BasketballGame(pGameId, pIsDebug);
+      var game = new BasketballGame(pGameId);
       game.initGame().then(() => game.run());
     });
   }
 
-  public static scheduleAllAPIGames(pIsDebug: boolean): JQueryPromise<any> {
+  public static scheduleAllAPIGames(): JQueryPromise<any> {
     return rp(ESPN.hiddenAPI).then((e) => {
       var data: APIReturn = JSON.parse(e);
 
@@ -145,7 +143,7 @@ export class Scheduler {
 
         if (gameStartTime < new Date()) {
           console.log("Game already started, running immediately");
-          let game = new BasketballGame(event.id, pIsDebug);
+          let game = new BasketballGame(event.id);
           game.initGame().then((e) => {
             game.run();
           });
@@ -153,7 +151,7 @@ export class Scheduler {
           continue;
         } else {
           console.log(`${event.name} scheduled for ${gameStartTime} ${event.id}`);
-          Scheduler.scheduleAPIGame(gameStartTime, event.id, pIsDebug);
+          Scheduler.scheduleAPIGame(gameStartTime, event.id);
         }
       }
       return;

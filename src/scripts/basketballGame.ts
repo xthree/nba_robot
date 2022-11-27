@@ -21,12 +21,14 @@ export class GameEvent {
   public finished: boolean;
 
   public gameText: string; //Used to detect if score changed after EOP 60 second delay
+  private isDebug: boolean;
 
   constructor(pType: GameEventType, pPeriod?: number) {
     this.type = pType;
     this.period = pPeriod ? pPeriod : 0;
     this.finished = false;
     this.delayed = false;
+    this.isDebug = process.env.isDebug === "true";
   }
 }
 
@@ -61,11 +63,10 @@ export class BasketballGame {
   public homeTeamName: string;
   public homeTeamScore: number;
 
-  public constructor(pGameId: string, pIsDebug: boolean) {
-    console.log(pGameId);
+  public constructor(pGameId: string) {
     this.gameId = pGameId;
-    this.isDebug = pIsDebug ? pIsDebug : false;
-    this.TwitterBot = new Twitter(this.isDebug); // CHANGE THIS TO FALSE TO ENABLE TWEETING
+    this.isDebug = process.env.isDebug === "true";
+    this.TwitterBot = new Twitter(); // CHANGE THIS TO FALSE TO ENABLE TWEETING
   }
 
   public isTiedGame(): boolean {
@@ -127,6 +128,14 @@ export class BasketballGame {
     return event ? event : null;
   }
 
+  private get69ScoreText() {
+    let text = "";
+    if (this.awayTeamScore == 69) text += "#Nice";
+    if (this.awayTeamScore == 69 && this.homeTeamScore == 69) text += " ";
+    if (this.homeTeamScore == 69) text += "#Nice";
+    return text;
+  }
+
   private liveTweet() {
     if (this.isPostponed) {
       this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has been postponed`);
@@ -137,7 +146,9 @@ export class BasketballGame {
       let event = this.getGameEventByType(GameEventType.Started, 0);
 
       if (!event.finished) {
-        this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has started\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`).then((tweetId) => {
+        let tweetMsg = `${this.awayTeamName} ${this.homeTeamName}\nGame has started`;
+        if (!this.isDebug) tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+        this.TwitterBot.sendTweet(tweetMsg).then((tweetId) => {
           this.lastTweetId = tweetId;
         });
         event.finished = true;
@@ -153,7 +164,11 @@ export class BasketballGame {
         tweetMsg += ` #The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag}`;
       }
 
-      tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+      tweetMsg += this.get69ScoreText();
+
+      if (!this.isDebug) {
+        tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+      }
 
       // Only tweet End of 4th if going into overtime / tied game
       if (this.period >= 4 && !this.isTiedGame()) {
@@ -198,7 +213,11 @@ export class BasketballGame {
         tweetMsg += ` #The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag}`;
       }
 
-      tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+      tweetMsg += this.get69ScoreText();
+
+      if (!this.isDebug) {
+        tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+      }
 
       let isGameStatusTextDifferent = event.gameText != this.getGameStatusText();
 
@@ -228,16 +247,14 @@ export class BasketballGame {
     if (this.awayTeamScore - this.homeTeamScore >= 20) {
       return {
         teamName: this.awayTeamName.split(" ").join(""),
-        teamHashtag: NBA.GetTeamByESPNId(this.awayTeamId).hashtag
-      }
-    }
-    else if (this.homeTeamScore - this.awayTeamScore >= 20) {
+        teamHashtag: NBA.GetTeamByESPNId(this.awayTeamId).hashtag,
+      };
+    } else if (this.homeTeamScore - this.awayTeamScore >= 20) {
       return {
         teamName: this.homeTeamName.split(" ").join(""),
-        teamHashtag: NBA.GetTeamByESPNId(this.homeTeamId).hashtag
-      }
-    }
-    else {
+        teamHashtag: NBA.GetTeamByESPNId(this.homeTeamId).hashtag,
+      };
+    } else {
       return null;
     }
   }
@@ -334,13 +351,15 @@ export class BasketballGame {
     nextRefreshDate.setSeconds(nextRefreshDate.getSeconds() + nextRefreshSeconds);
 
     console.log(
-      `${this.awayTeamName} -${this.awayTeamScore} ${this.homeTeamName} -${this.homeTeamScore} ${this.Event.status.type.detail
+      `${this.awayTeamName} -${this.awayTeamScore} ${this.homeTeamName} -${this.homeTeamScore} ${
+        this.Event.status.type.detail
       } \nNext refresh: ${nextRefreshDate.toLocaleTimeString()} \n`
     );
     return nextRefreshDate;
   }
 
   public generateSave(): any {
+    if (this.isDebug) return;
     let basketballGameScraper = new BasketballGameScraper(this.gameId);
     basketballGameScraper.init().then(() => {
       let saveFile = {
@@ -400,7 +419,7 @@ export class season {
   public type: number;
 }
 
-export class league { }
+export class league {}
 
 export class event {
   public id: string;
@@ -507,6 +526,6 @@ export class team {
 }
 
 export interface teamCrushingInfo {
-  teamName: string
-  teamHashtag: string
+  teamName: string;
+  teamHashtag: string;
 }
