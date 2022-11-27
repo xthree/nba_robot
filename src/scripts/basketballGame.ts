@@ -128,8 +128,10 @@ export class BasketballGame {
     return event ? event : null;
   }
 
-  private get69ScoreText() {
+  private get69ScoreText(addNewLine: boolean = false) {
     let text = "";
+    if ((this.awayTeamScore == 69 || this.homeTeamScore == 69) && addNewLine) text += "\n";
+
     if (this.awayTeamScore == 69) text += "#Nice";
     if (this.awayTeamScore == 69 && this.homeTeamScore == 69) text += " ";
     if (this.homeTeamScore == 69) text += "#Nice";
@@ -161,10 +163,10 @@ export class BasketballGame {
       let crushingTeamInfo = this.getTeamCrushingInfo();
 
       if (crushingTeamInfo) {
-        tweetMsg += ` #The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag}`;
+        tweetMsg += `\n#The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag}`;
       }
 
-      tweetMsg += this.get69ScoreText();
+      tweetMsg += this.get69ScoreText(!crushingTeamInfo);
 
       if (!this.isDebug) {
         tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
@@ -210,10 +212,10 @@ export class BasketballGame {
       let crushingTeamInfo = this.getTeamCrushingInfo();
 
       if (crushingTeamInfo) {
-        tweetMsg += ` #The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag}`;
+        tweetMsg += `\n#The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag}`;
       }
 
-      tweetMsg += this.get69ScoreText();
+      tweetMsg += this.get69ScoreText(!crushingTeamInfo);
 
       if (!this.isDebug) {
         tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
