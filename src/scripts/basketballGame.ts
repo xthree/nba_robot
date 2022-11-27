@@ -287,7 +287,7 @@ export class BasketballGame {
         this.awayTeamScore = parseInt(this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score);
         this.homeTeamScore = parseInt(this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score);
 
-        // Sometimes end of period is flagged, but score has not yet updated.
+        // Sometimes end of period is flagged, but score has not yet updated. Like when a buzzer beater shot is made but is being checked by the officials to see if it counted.
         // Do one last check in 60 seconds to hopefully get a more accurate score
         // TD maybe find a way to detect inaccurate score  (exploded quarter score or tally up player scores on website)
         if (this.isCompleted || this.isEndOfPeriod || this.isHalftime) {
