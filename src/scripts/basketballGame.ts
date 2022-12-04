@@ -161,7 +161,9 @@ export class BasketballGame {
       let crushingTeamInfo = this.getTeamCrushingInfo();
 
       if (crushingTeamInfo) {
-        tweetMsg += ` #The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag}`;
+        tweetMsg += `\n#The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag} `;
+      } else {
+        tweetMsg += `\n`;
       }
 
       tweetMsg += this.get69ScoreText();
@@ -210,7 +212,9 @@ export class BasketballGame {
       let crushingTeamInfo = this.getTeamCrushingInfo();
 
       if (crushingTeamInfo) {
-        tweetMsg += ` #The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag}`;
+        tweetMsg += `\n#The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag} `;
+      } else {
+        tweetMsg += `\n`;
       }
 
       tweetMsg += this.get69ScoreText();
