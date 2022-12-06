@@ -128,14 +128,6 @@ export class BasketballGame {
     return event ? event : null;
   }
 
-  private get69ScoreText() {
-    let text = "";
-    if (this.awayTeamScore == 69) text += "#Nice";
-    if (this.awayTeamScore == 69 && this.homeTeamScore == 69) text += " ";
-    if (this.homeTeamScore == 69) text += "#Nice";
-    return text;
-  }
-
   private liveTweet() {
     if (this.isPostponed) {
       this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has been postponed`);
@@ -158,18 +150,10 @@ export class BasketballGame {
     if (this.isEndOfPeriod || this.isHalftime) {
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
 
-      let crushingTeamInfo = this.getTeamCrushingInfo();
-
-      if (crushingTeamInfo) {
-        tweetMsg += `\n#The${crushingTeamInfo.teamName}AreCrushing #${crushingTeamInfo.teamHashtag} `;
-      } else {
-        tweetMsg += `\n`;
-      }
-
-      tweetMsg += this.get69ScoreText();
+      tweetMsg += this.getFirstHashtagLine();
 
       if (!this.isDebug) {
-        tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+        tweetMsg += this.getNBAHashtagLine();
       }
 
       // Only tweet End of 4th if going into overtime / tied game
@@ -209,18 +193,10 @@ export class BasketballGame {
       let event = this.getGameEventByType(GameEventType.Final, 0);
       let tweetMsg = `${this.statusDetail}\n${this.awayTeamName}-${this.awayTeamScore} ${this.homeTeamName}-${this.homeTeamScore}`;
 
-      let crushingTeamInfo = this.getTeamCrushingInfo();
-
-      if (crushingTeamInfo) {
-        tweetMsg += `\n#The${crushingTeamInfo.teamName}HaveCrushed #${crushingTeamInfo.teamHashtag} `;
-      } else {
-        tweetMsg += `\n`;
-      }
-
-      tweetMsg += this.get69ScoreText();
+      tweetMsg += this.getFirstHashtagLine();
 
       if (!this.isDebug) {
-        tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+        tweetMsg += this.getNBAHashtagLine();
       }
 
       let isGameStatusTextDifferent = event.gameText != this.getGameStatusText();
@@ -243,6 +219,27 @@ export class BasketballGame {
     return true;
   }
 
+  private get69ScoreText() {
+    let text = "";
+    if (this.awayTeamScore == 69) text += "#Nice";
+    if (this.awayTeamScore == 69 && this.homeTeamScore == 69) text += " ";
+    if (this.homeTeamScore == 69) text += "#Nice";
+    return text;
+  }
+
+  private getFirstHashtagLine() {
+    const crushingText = this.getTeamCrushingText();
+    const _69Text = this.get69ScoreText();
+
+    if (!crushingText && !_69Text) return;
+
+    return `\n${crushingText}${crushingText && _69Text ? " " : ""}${_69Text}`;
+  }
+
+  private getNBAHashtagLine() {
+    return `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+  }
+
   private getGameStatusText(): string {
     return `${this.awayTeamName} -${this.awayTeamScore} ${this.homeTeamName} -${this.homeTeamScore} ${this.Event.status.type.detail} `;
   }
@@ -261,6 +258,13 @@ export class BasketballGame {
     } else {
       return null;
     }
+  }
+
+  private getTeamCrushingText() {
+    const crushingTeamInfo = this.getTeamCrushingInfo();
+    return crushingTeamInfo
+      ? `#The${crushingTeamInfo.teamName}${this.isCompleted ? "HaveCrushed" : "AreCrushing"} #${crushingTeamInfo.teamHashtag}`
+      : "";
   }
 
   // Recursive-ish via scheduling next run of the same method
