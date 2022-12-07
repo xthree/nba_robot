@@ -231,7 +231,7 @@ export class BasketballGame {
     const crushingText = this.getTeamCrushingText();
     const _69Text = this.get69ScoreText();
 
-    if (!crushingText && !_69Text) return;
+    if (!crushingText && !_69Text) return "";
 
     return `\n${crushingText}${crushingText && _69Text ? " " : ""}${_69Text}`;
   }
