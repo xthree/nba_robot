@@ -56,6 +56,9 @@ export class Twitter {
             for (let error of errors) {
               console.log("Error" + error.code + " " + error.message);
               console.log();
+              if (error.code === 187) {
+                this.sendTweet(pTweetMessage + " ", pReplyToId);
+              }
             }
 
             resolve("shit broke");
