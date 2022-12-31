@@ -45,6 +45,7 @@ export class NBA {
       location: "Cleveland",
       hashtag: "BeTheFight",
       twitterHandle: "cavs",
+      didTeamWinHandle: "DidCavsWinAgain",
     },
     {
       id: 6,
@@ -90,6 +91,7 @@ export class NBA {
       location: "Houston",
       hashtag: "Rockets",
       twitterHandle: "HoustonRockets",
+      didTeamWinHandle: "RocketsWLReport",
     },
     {
       id: 11,
@@ -145,6 +147,7 @@ export class NBA {
       location: "Minnesota",
       hashtag: "RaisedByWolves",
       twitterHandle: "Timberwolves",
+      didTeamWinHandle: "DidTimberwolves",
     },
     {
       id: 17,
@@ -154,6 +157,7 @@ export class NBA {
       location: "Brooklyn",
       hashtag: "NetsWorld",
       twitterHandle: "BrooklynNets",
+      didTeamWinHandle: "DidNetsWin",
     },
     {
       id: 18,
@@ -217,6 +221,7 @@ export class NBA {
       location: "San Antonio",
       hashtag: "PorVida",
       twitterHandle: "spurs",
+      didTeamWinHandle: "_DidTheSpursWin",
     },
     {
       id: 25,
@@ -235,6 +240,7 @@ export class NBA {
       location: "Utah",
       hashtag: "TakeNote",
       twitterHandle: "utahjazz",
+      didTeamWinHandle: "HaveTheJazzWon",
     },
     {
       id: 27,
