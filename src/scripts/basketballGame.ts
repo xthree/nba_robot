@@ -235,8 +235,8 @@ export class BasketballGame {
         const isTweetAfterGameStartTime = latestTweetDate > gameStartTimeDate;
 
         const nowTime = new Date();
-        const diffTime = Math.abs(nowTime - gameStartTimeDate);
-        
+        const diffTime = Math.abs(nowTime.getTime() - gameStartTimeDate.getTime());
+
         // If it's been over 14 hours since game start time and still the account hasn't tweeted, give up
         if (diffTime > 50400000) {
           console.log("Its been too long finding did team win tweet, giving up");
