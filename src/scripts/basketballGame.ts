@@ -139,7 +139,7 @@ export class BasketballGame {
 
       if (!event.finished) {
         let tweetMsg = `${this.awayTeamName} ${this.homeTeamName}\nGame has started`;
-        if (!this.isDebug) tweetMsg += `\n${NBA.LeagueWideHashtags.NBATwitter} ${NBA.LeagueWideHashtags.NBA}`;
+        if (!this.isDebug) tweetMsg += this.getNBAHashtagLine();
         this.TwitterBot.sendTweet(tweetMsg).then((tweetId) => {
           this.lastTweetId = tweetId;
         });
