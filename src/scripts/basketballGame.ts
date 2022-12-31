@@ -139,7 +139,7 @@ export class BasketballGame {
 
       if (!event.finished) {
         let tweetMsg = `${this.awayTeamName} ${this.homeTeamName}\nGame has started`;
-        if (!this.isDebug) tweetMsg += `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+        if (!this.isDebug) tweetMsg += `\n${NBA.LeagueWideHashtags.NBATwitter} ${NBA.LeagueWideHashtags.NBA}`;
         this.TwitterBot.sendTweet(tweetMsg).then((tweetId) => {
           this.lastTweetId = tweetId;
         });
@@ -219,7 +219,7 @@ export class BasketballGame {
     return true;
   }
 
-  private get69ScoreText() {
+  private get69ScoreText(): string {
     let text = "";
     if (this.awayTeamScore == 69) text += "#Nice";
     if (this.awayTeamScore == 69 && this.homeTeamScore == 69) text += " ";
@@ -227,7 +227,7 @@ export class BasketballGame {
     return text;
   }
 
-  private getFirstHashtagLine() {
+  private getFirstHashtagLine(): string {
     const crushingText = this.getTeamCrushingText();
     const _69Text = this.get69ScoreText();
 
@@ -236,8 +236,15 @@ export class BasketballGame {
     return `\n${crushingText}${crushingText && _69Text ? " " : ""}${_69Text}`;
   }
 
-  private getNBAHashtagLine() {
-    return `\n#${NBA.LeagueWideHashtags.NBATwitter} #${NBA.LeagueWideHashtags.NBA}`;
+  private getNBAHashtagLine(): string {
+    return `\n${this.getAwayVsHomeHashtag()} ${NBA.LeagueWideHashtags.NBATwitter} ${NBA.LeagueWideHashtags.NBA}`;
+  }
+
+  private getAwayVsHomeHashtag(): string {
+    const homeTeamAbbreviation = NBA.GetTeamByESPNId(this.homeTeamId).abbreviation;
+    const awayTeamAbbreviation = NBA.GetTeamByESPNId(this.awayTeamId).abbreviation;
+
+    return `#${awayTeamAbbreviation}vs${homeTeamAbbreviation}`;
   }
 
   private getGameStatusText(): string {

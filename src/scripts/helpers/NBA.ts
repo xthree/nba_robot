@@ -273,7 +273,9 @@ export class NBA {
   ]
 
   public static LeagueWideHashtags = {
-    NBA: "NBA", NBA75: "NBA75", NBATwitter: "NBATwitter"
+    NBA: "#NBA",
+    NBA75: "#NBA75",
+    NBATwitter: "#NBATwitter",
   };
 
   public static GetTeamByESPNId(id): NBATeam {
