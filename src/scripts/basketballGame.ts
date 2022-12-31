@@ -237,6 +237,12 @@ export class BasketballGame {
         const nowTime = new Date();
         const diffTime = Math.abs(nowTime.getTime() - gameStartTimeDate.getTime());
 
+        // If it's been roughly 2 weeks since the last tweet from the account, assume the account is inactive and don't continue checking
+        if (nowTime.getTime() - latestTweetDate.getTime() > 1296000000) {
+          clearInterval(interval);
+          return;
+        }
+
         // If it's been over 14 hours since game start time and still the account hasn't tweeted, give up
         if (diffTime > 50400000) {
           console.log("Its been too long finding did team win tweet, giving up");
