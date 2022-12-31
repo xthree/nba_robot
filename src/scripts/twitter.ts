@@ -3,14 +3,22 @@ import keys from "./config/keys";
 // TWITTER
 const OAuth = require("oauth");
 
+type AppMode = "test" | "production";
+
+type Tweet = {
+  id: string;
+  created_at: string;
+  text: string;
+};
+
 export class Twitter {
   private oauth;
-  private appMode;
+  private appMode: AppMode;
   private isDebug: boolean;
 
-  constructor() {
+  constructor(appMode?: AppMode) {
     this.isDebug = process.env.isDebug === "true";
-    this.appMode = this.isDebug ? "test" : "production";
+    this.appMode = appMode || this.isDebug ? "test" : "production";
     console.log(this.appMode);
     this.oauth = new OAuth.OAuth(
       "https://api.twitter.com/oauth/request_token",
@@ -21,6 +29,42 @@ export class Twitter {
       null,
       "HMAC-SHA1"
     );
+  }
+
+  public getLatestTweetFromAccount(accountHandle: string): Promise<Tweet> {
+    return new Promise((resolve, reject) => {
+      console.log("going");
+      this.oauth.get(
+        `https://api.twitter.com/2/tweets/search/recent?query=from%3A${accountHandle}&tweet.fields=created_at`,
+        keys[this.appMode].twitter_user_access_token, // oauth_token (user access token)
+        keys[this.appMode].twitter_user_secret, // oauth_secret (user secret)
+        (e, data) => {
+          if (data) {
+            let tweets = JSON.parse(data).data;
+            resolve(tweets?.[0] as Tweet);
+          }
+        }
+      );
+    });
+  }
+
+  public getTweet(tweetId: string) {
+    return new Promise((resolve, reject) => {
+      this.oauth.get(
+        `https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=created_at`,
+        keys[this.appMode].twitter_user_access_token, // oauth_token (user access token)
+        keys[this.appMode].twitter_user_secret, // oauth_secret (user secret)
+        (e, data) => {
+          if (data) {
+            let parsedData = JSON.parse(data);
+
+            console.log(parsedData);
+            // Resolve with the tweet's id
+            //resolve(parsedData["id_str"]);
+          }
+        }
+      );
+    });
   }
 
   public sendTweet(pTweetMessage: string, pReplyToId: string = null): Promise<any> {
@@ -57,6 +101,7 @@ export class Twitter {
               console.log("Error" + error.code + " " + error.message);
               console.log();
               if (error.code === 187) {
+                // "Status is a duplicate error" Add a space to the end and tweet again. Created to allow the bot to start over when stopping and starting again
                 this.sendTweet(pTweetMessage + " ", pReplyToId);
               }
             }
@@ -72,5 +117,10 @@ export class Twitter {
         }
       );
     });
+  }
+
+  public buildTwitterURL(tweetId: string) {
+    const botHandle = keys[this.appMode].twitter_handle;
+    return `https://twitter.com/${botHandle}/status/${tweetId}`;
   }
 }
