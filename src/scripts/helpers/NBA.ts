@@ -110,6 +110,7 @@ export class NBA {
       location: "Los Angeles",
       hashtag: "ClipperNation",
       twitterHandle: "LAClippers",
+      didTeamWinHandle: "ClipsWorL",
     },
     {
       id: 13,
