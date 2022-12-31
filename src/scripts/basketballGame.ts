@@ -109,18 +109,18 @@ export class BasketballGame {
     console.log(this.Event.status.displayClock); //15.5
     console.log(this.Event.status.type.description); // In Progress, End of Period, Final
 
-    let awayScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").score;
-    let awayTeamName = this.Event.competitions[0].competitors.find((e) => e.homeAway == "away").team.name;
+    let awayScore = this.Event.competitions[0].competitors.find((e) => e.homeAway === "away")?.score;
+    let awayTeamName = this.Event.competitions[0].competitors.find((e) => e.homeAway === "away")?.team.name;
 
-    let homeScore = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").score;
-    let homeTeamName = this.Event.competitions[0].competitors.find((e) => e.homeAway == "home").team.name;
+    let homeScore = this.Event.competitions[0].competitors.find((e) => e.homeAway === "home")?.score;
+    let homeTeamName = this.Event.competitions[0].competitors.find((e) => e.homeAway === "home")?.team.name;
 
     console.log(`${awayTeamName}-${awayScore}`);
     console.log(`${homeTeamName}-${homeScore}`);
     console.log();
   }
 
-  private getGameEventByType(pGameEventType: GameEventType, pPeriod: number) {
+  private getGameEventByType(pGameEventType: GameEventType, pPeriod: number): GameEvent | null {
     let event = this.TweetEvents.find((e) => {
       return e.type == pGameEventType && e.period == pPeriod;
     });
@@ -137,7 +137,7 @@ export class BasketballGame {
     if (this.isStarted) {
       let event = this.getGameEventByType(GameEventType.Started, 0);
 
-      if (!event.finished) {
+      if (!event?.finished) {
         let tweetMsg = `${this.awayTeamName} ${this.homeTeamName}\nGame has started`;
         if (!this.isDebug) tweetMsg += `\n${NBA.LeagueWideHashtags.NBATwitter} ${NBA.LeagueWideHashtags.NBA}`;
         this.TwitterBot.sendTweet(tweetMsg).then((tweetId) => {
@@ -214,9 +214,46 @@ export class BasketballGame {
       });
 
       event.finished = true;
+
+      this.startDidTeamWinInterval("home");
+      this.startDidTeamWinInterval("away");
     }
 
     return true;
+  }
+
+  private startDidTeamWinInterval(awayOrHome: "home" | "away") {
+    const teamId = awayOrHome === "away" ? this.awayTeamId : this.homeTeamId;
+
+    const didTeamWinHandle = NBA.GetTeamByESPNId(teamId).didTeamWinHandle;
+
+    if (didTeamWinHandle) {
+      let interval = setInterval(async () => {
+        const latestTweet = await this.TwitterBot.getLatestTweetFromAccount(didTeamWinHandle);
+        const gameStartTimeDate = new Date(this.gameStartDateTime);
+        const latestTweetDate = new Date(latestTweet.created_at);
+        const isTweetAfterGameStartTime = latestTweetDate > gameStartTimeDate;
+
+        const nowTime = new Date();
+        const diffTime = Math.abs(nowTime - gameStartTimeDate);
+        
+        // If it's been over 14 hours since game start time and still the account hasn't tweeted, give up
+        if (diffTime > 50400000) {
+          console.log("Its been too long finding did team win tweet, giving up");
+          clearInterval(interval);
+          return;
+        }
+
+        if (isTweetAfterGameStartTime) {
+          clearInterval(interval);
+
+          console.log(latestTweet);
+          const finalTweetURL = this.TwitterBot.buildTwitterURL(this.lastTweetId);
+          this.TwitterBot.sendTweet(finalTweetURL, latestTweet.id);
+          return;
+        }
+      }, 600000); // 10Mins
+    }
   }
 
   private get69ScoreText(): string {
