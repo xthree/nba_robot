@@ -254,6 +254,7 @@ export class BasketballGame {
 
           console.log(latestTweet);
           const finalTweetURL = this.TwitterBot.buildTwitterURL(this.lastTweetId);
+          console.log(latestTweet.id);
           this.TwitterBot.sendTweet(finalTweetURL, latestTweet.id);
           return;
         }

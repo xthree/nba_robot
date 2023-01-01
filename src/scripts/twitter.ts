@@ -86,6 +86,8 @@ export class Twitter {
         in_reply_to_status_id: pReplyToId,
       };
 
+      console.log(postBody);
+
       this.oauth.post(
         "https://api.twitter.com/1.1/statuses/update.json",
         keys[this.appMode].twitter_user_access_token, // oauth_token (user access token)
