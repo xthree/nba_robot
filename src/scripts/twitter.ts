@@ -34,19 +34,23 @@ export class Twitter {
   }
 
   public getLatestTweetFromAccount(accountHandle: string): Promise<Tweet> {
-    console.log("getting latest");
+    console.log("getting latest from ", accountHandle);
     return new Promise((resolve, reject) => {
+      console.log("before get")
       this.oauth.get(
         `https://api.twitter.com/2/tweets/search/recent?query=from%3A${accountHandle}&tweet.fields=created_at`,
         keys[this.appMode].twitter_user_access_token, // oauth_token (user access token)
         keys[this.appMode].twitter_user_secret, // oauth_secret (user secret)
-        (e, data) => {
+        (e, data) => {|
+          console.log("after get")
           if (data) {
+            console.log("tehres data")
             let tweets = JSON.parse(data).data;
             resolve(tweets?.[0] as Tweet);
           }
 
           if (e) {
+            
             console.log("get latest error");
             console.log(e);
           }
