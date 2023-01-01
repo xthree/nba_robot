@@ -235,7 +235,7 @@ export class BasketballGame {
     const teamId = awayOrHome === "away" ? this.awayTeamId : this.homeTeamId;
 
     const didTeamWinHandle = NBA.GetTeamByESPNId(teamId).didTeamWinHandle;
-
+    console.log(didTeamWinHandle);
     if (didTeamWinHandle) {
       let interval = setInterval(async () => {
         const latestTweet = await this.TwitterBot.getLatestTweetFromAccount(didTeamWinHandle);
