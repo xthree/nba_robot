@@ -130,7 +130,7 @@ export class BasketballGame {
 
   private liveTweet() {
     if (this.isPostponed) {
-      this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has been postponed`);
+      this.TwitterBot.sendTweet(`${this.awayTeamName} ${this.homeTeamName}\nGame has been postponed`).catch(() => console.log("ccatch"));
       return;
     }
 
@@ -270,7 +270,7 @@ export class BasketballGame {
           console.log(latestTweet);
           const finalTweetURL = this.TwitterBot.buildTwitterURL(this.lastTweetId);
           console.log(latestTweet.id);
-          this.TwitterBot.sendTweet(finalTweetURL, latestTweet.id);
+          this.TwitterBot.sendTweet(finalTweetURL, latestTweet.id).catch(() => console.log("catch"));
           return;
         }
       }, 600000); // 10Mins
