@@ -214,9 +214,6 @@ export class BasketballGame {
       });
 
       event.finished = true;
-
-      this.startDidTeamWinInterval("home");
-      this.startDidTeamWinInterval("away");
     }
 
     return true;
@@ -231,7 +228,7 @@ export class BasketballGame {
       let interval = setInterval(async () => {
         const latestTweet = await this.TwitterBot.getLatestTweetFromAccount(didTeamWinHandle);
         console.log("Latest tweet", latestTweet);
-        
+
         const gameStartTimeDate = new Date(this.gameStartDateTime);
         const latestTweetDate = new Date(latestTweet.created_at);
         const isTweetAfterGameStartTime = latestTweetDate > gameStartTimeDate;
@@ -365,7 +362,7 @@ export class BasketballGame {
               this.getDataAsync();
             }, Scheduler.addMinutesToNow(1));
 
-            event.delayed = true;
+            event.delayed = true; // This is not the game event, but rather the event/act of sending a tweet for a particular quarter or started/final.
             event.gameText = this.getGameStatusText();
             return;
           }
@@ -382,6 +379,9 @@ export class BasketballGame {
         if (this.isCompleted) {
           this.generateSave();
           console.log(`Refreshes: ${this.refreshCount} `);
+
+          this.startDidTeamWinInterval("home");
+          this.startDidTeamWinInterval("away");
           return;
         }
 
