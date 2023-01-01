@@ -33,7 +33,6 @@ export class Twitter {
 
   public getLatestTweetFromAccount(accountHandle: string): Promise<Tweet> {
     return new Promise((resolve, reject) => {
-      console.log("going");
       this.oauth.get(
         `https://api.twitter.com/2/tweets/search/recent?query=from%3A${accountHandle}&tweet.fields=created_at`,
         keys[this.appMode].twitter_user_access_token, // oauth_token (user access token)
@@ -77,6 +76,10 @@ export class Twitter {
       // }
 
       console.log(`Tweeting:\n ${pTweetMessage}`);
+
+      if (pReplyToId) {
+        console.log("In reply to: " + pReplyToId);
+      }
 
       let postBody = {
         status: pTweetMessage,

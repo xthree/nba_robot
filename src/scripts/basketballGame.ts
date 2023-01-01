@@ -230,6 +230,8 @@ export class BasketballGame {
     if (didTeamWinHandle) {
       let interval = setInterval(async () => {
         const latestTweet = await this.TwitterBot.getLatestTweetFromAccount(didTeamWinHandle);
+        console.log("Latest tweet", latestTweet);
+        
         const gameStartTimeDate = new Date(this.gameStartDateTime);
         const latestTweetDate = new Date(latestTweet.created_at);
         const isTweetAfterGameStartTime = latestTweetDate > gameStartTimeDate;
