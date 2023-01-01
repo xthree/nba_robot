@@ -105,7 +105,7 @@ export class Twitter {
         keys[this.appMode].twitter_user_secret, // oauth_secret (user secret)
         postBody, // post body
         "", // post content type ?
-        async (err, data, res) => {
+        (err, data, res) => {
           if (err) {
             console.log("Errors detected");
             console.log(err);
@@ -118,7 +118,7 @@ export class Twitter {
               console.log();
               if (error.code === 187 && !this.disableRetry) {
                 // "Status is a duplicate error" Add a space to the end and tweet again. Created to allow the bot to start over when stopping and starting again
-                await this.sendTweet(pTweetMessage + " ", pReplyToId).then((data) => {
+                this.sendTweet(pTweetMessage + " ", pReplyToId).then((data) => {
                   if (data) {
                     let parsedData = JSON.parse(data);
                     // Resolve with the tweet's id
