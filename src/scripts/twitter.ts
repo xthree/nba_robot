@@ -20,7 +20,7 @@ export class Twitter {
   constructor(appMode?: AppMode) {
     this.isDebug = process.env.isDebug === "true";
     this.appMode = appMode || this.isDebug ? "test" : "production";
-    this.disableRetry = true;
+    this.disableRetry = false;
     console.log(this.appMode);
     this.oauth = new OAuth.OAuth(
       "https://api.twitter.com/oauth/request_token",
@@ -50,7 +50,7 @@ export class Twitter {
           }
 
           if (e) {
-            
+
             console.log("get latest error");
             console.log(e);
           }
@@ -106,7 +106,7 @@ export class Twitter {
         keys[this.appMode].twitter_user_secret, // oauth_secret (user secret)
         postBody, // post body
         "", // post content type ?
-        (err, data, res) => {
+       async (err, data, res) => {
           if (err) {
             console.log("Errors detected");
             console.log(err);
@@ -119,11 +119,11 @@ export class Twitter {
               console.log();
               if (error.code === 187 && !this.disableRetry) {
                 // "Status is a duplicate error" Add a space to the end and tweet again. Created to allow the bot to start over when stopping and starting again
-                this.sendTweet(pTweetMessage + " ", pReplyToId);
+                await this.sendTweet(pTweetMessage + " ", pReplyToId);
               }
             }
-
-            resolve("shit broke");
+            console.log("SHIT broke")
+            reject("shit broke");
           }
 
           if (data) {
