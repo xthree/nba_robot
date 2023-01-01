@@ -118,7 +118,13 @@ export class Twitter {
               console.log();
               if (error.code === 187 && !this.disableRetry) {
                 // "Status is a duplicate error" Add a space to the end and tweet again. Created to allow the bot to start over when stopping and starting again
-                await this.sendTweet(pTweetMessage + " ", pReplyToId);
+                await this.sendTweet(pTweetMessage + " ", pReplyToId).then((data) => {
+                  if (data) {
+                    let parsedData = JSON.parse(data);
+                    // Resolve with the tweet's id
+                    resolve(parsedData["id_str"]);
+                  }
+                });
               }
             }
             console.log("SHIT broke");
