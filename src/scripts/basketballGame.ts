@@ -140,9 +140,13 @@ export class BasketballGame {
       if (!event?.finished) {
         let tweetMsg = `${this.awayTeamName} ${this.homeTeamName}\nGame has started`;
         if (!this.isDebug) tweetMsg += `\n${NBA.LeagueWideHashtags.NBATwitter} ${NBA.LeagueWideHashtags.NBA}`;
-        this.TwitterBot.sendTweet(tweetMsg).then((tweetId) => {
-          this.lastTweetId = tweetId;
-        });
+        this.TwitterBot.sendTweet(tweetMsg)
+          .then((tweetId) => {
+            this.lastTweetId = tweetId;
+          })
+          .catch(() => {
+            console.log("Catch");
+          });
         event.finished = true;
       }
     }
@@ -181,9 +185,13 @@ export class BasketballGame {
           console.log();
         }
 
-        this.TwitterBot.sendTweet(tweetMsg, this.lastTweetId).then((tweetId) => {
-          this.lastTweetId = tweetId;
-        });
+        this.TwitterBot.sendTweet(tweetMsg, this.lastTweetId)
+          .then((tweetId) => {
+            this.lastTweetId = tweetId;
+          })
+          .catch(() => {
+            console.log("Catch");
+          });
         event.finished = true;
         return;
       }
@@ -209,9 +217,13 @@ export class BasketballGame {
         console.log();
       }
 
-      this.TwitterBot.sendTweet(tweetMsg, this.lastTweetId).then((tweetId) => {
-        this.lastTweetId = tweetId;
-      });
+      this.TwitterBot.sendTweet(tweetMsg, this.lastTweetId)
+        .then((tweetId) => {
+          this.lastTweetId = tweetId;
+        })
+        .catch(() => {
+          console.log("Catch");
+        });
 
       event.finished = true;
     }
